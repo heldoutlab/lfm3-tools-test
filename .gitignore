@@ -1,0 +1,7 @@
+# Patterns kept OUT of the public test repo (github.com/heldoutlab/lfm3-tools-test). Copy this file as .gitignore when exporting.
+# Inside the private ai-claims repo these files ARE committed, so the private sets are backed up.
+# Never published: the Part B private set, the LFM2.5 test's private set (Part A), and their results.
+items_private/
+results/private/
+__pycache__/
+*.pyc
