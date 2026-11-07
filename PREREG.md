@@ -142,6 +142,18 @@ Wrong if: LFM3 beats 37/75 on Part A, or if it trails Qwen on single-call benchm
 
 *Definitions fixed with the author before any run:* scores are lenient, arm A (BF16), main run. "Beats 37/75" = 38 or more of T01–T75. "Trails Qwen on single-call" = LFM3's single-call score (S01–S30) is below Qwen3.5-4B's, point estimate, regardless of the interval. "Loop accumulation and turn-limit exhaustion" is checked against the reported cap-out counts (40-turn limit, 16,384-token turn limit) on Part A. The prediction is not part of the pass/fail rule; it is scored in the write-up.
 
+## Analysis details (fixed before the freeze, 2026-11-07; nothing has run)
+
+- `harness/analyze.py` applies A1 and B1 exactly as written above, on the lenient score. Gaps are LFM3 minus the comparison, in points.
+- **Interval:** paired bootstrap, 10,000 resamples of tasks with replacement within the set being compared (S01–S30, M01–M30, or T01–T75), seed 0, 2.5th and 97.5th percentiles. Not stratified by environment.
+- **Part A baseline:** LFM2.5's per-task scores (and Qwen3.6's, context only) copied from the LFM2.5 test's result files into `reference/lfm25_partA.json`, with the sha256 of each source file. The private 40 are kept in the private results folder. A1 is reported as incomplete unless all 75 tasks ran.
+- **Private sets:** the public report states only the direction of each private gap (LFM3 ahead / behind / tie) and whether it matches the public direction ("replicated").
+- **Difficulty check:** Gemma's score on C1–C8 is reported against the 4–6 target; the task set is adjusted only on 8/8 or ≤ 2/8, as stated above.
+- `harness/regrade.py` re-runs every frozen check on the saved final states of every run before analysis; its output is quoted in the write-up.
+- Tested end to end on synthetic results (reference solutions replayed or skipped at random; no model): every rule branch gives the expected verdict, and every score reproduces.
+
+**Task-set notes.** Part B tasks accept the same argument coercions as the LFM2.5 test ("250" → 250, "true" → true, a null optional = omitted), plus one new one: an array sent as a JSON string is parsed. Schemas may contain arrays of flat objects (one level deep). The veterinary clinic and warehouse domains sit near the Bonsai test's clinic and inventory domains in subject only; their tools, entities and rules are new.
+
 ## Frozen hashes
 
 (filled at the freeze: sha256 of every task file, harness file and this file's rule section)

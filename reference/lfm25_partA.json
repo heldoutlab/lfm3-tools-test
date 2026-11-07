@@ -1,0 +1,823 @@
+{
+ "note": "Per-task [strict, lenient] scores copied from tests/lfm25-tools (seed 1001, llama.cpp build 10964). B = LFM2.5-24B-A2B Q4_K_M (the Part A baseline); A = Qwen3.6 (context only, not in any rule).",
+ "source_sha256": {
+  "main/B.jsonl": "b5a0b824b6eb53357eb87144c757fb21644a2a9b3156d666b432fdf682f6a2e3",
+  "main/A.jsonl": "8ca1f5f7df153a475f7533b25de3f442401194d2c84b334baefbdd954208bea7",
+  "hard/B.jsonl": "c18a5b90a0cacfe43b29a82b6a3d166aa113e2029c0c3605d743cac5b12c59f1",
+  "hard/A.jsonl": "aea6058862c4933302b7869b22c377508d7a29e9c93939ced443c616cdeccab0"
+ },
+ "runs": {
+  "a_main": {
+   "lfm25": {
+    "T01": [
+     false,
+     false
+    ],
+    "T02": [
+     false,
+     false
+    ],
+    "T03": [
+     true,
+     true
+    ],
+    "T04": [
+     true,
+     true
+    ],
+    "T05": [
+     false,
+     false
+    ],
+    "T06": [
+     false,
+     false
+    ],
+    "T07": [
+     true,
+     true
+    ],
+    "T08": [
+     true,
+     true
+    ],
+    "T09": [
+     true,
+     true
+    ],
+    "T10": [
+     false,
+     false
+    ],
+    "T11": [
+     true,
+     true
+    ],
+    "T12": [
+     true,
+     true
+    ],
+    "T13": [
+     true,
+     true
+    ],
+    "T14": [
+     true,
+     true
+    ],
+    "T15": [
+     false,
+     false
+    ],
+    "T16": [
+     false,
+     false
+    ],
+    "T17": [
+     true,
+     true
+    ],
+    "T18": [
+     false,
+     false
+    ],
+    "T19": [
+     true,
+     true
+    ],
+    "T20": [
+     false,
+     false
+    ],
+    "T21": [
+     false,
+     false
+    ],
+    "T22": [
+     true,
+     true
+    ],
+    "T23": [
+     true,
+     true
+    ],
+    "T24": [
+     true,
+     true
+    ],
+    "T25": [
+     false,
+     false
+    ],
+    "T26": [
+     true,
+     true
+    ],
+    "T27": [
+     true,
+     true
+    ],
+    "T28": [
+     true,
+     true
+    ],
+    "T29": [
+     true,
+     true
+    ],
+    "T30": [
+     true,
+     true
+    ],
+    "T31": [
+     true,
+     true
+    ],
+    "T32": [
+     false,
+     false
+    ],
+    "T33": [
+     false,
+     false
+    ],
+    "T34": [
+     false,
+     false
+    ],
+    "T35": [
+     true,
+     true
+    ],
+    "T36": [
+     false,
+     false
+    ],
+    "T37": [
+     false,
+     false
+    ],
+    "T38": [
+     true,
+     true
+    ],
+    "T39": [
+     true,
+     true
+    ],
+    "T40": [
+     false,
+     false
+    ],
+    "T41": [
+     false,
+     false
+    ],
+    "T42": [
+     true,
+     true
+    ],
+    "T43": [
+     false,
+     false
+    ],
+    "T44": [
+     false,
+     false
+    ],
+    "T45": [
+     true,
+     true
+    ],
+    "T46": [
+     true,
+     true
+    ],
+    "T47": [
+     false,
+     false
+    ],
+    "T48": [
+     false,
+     false
+    ],
+    "T49": [
+     false,
+     false
+    ],
+    "T50": [
+     true,
+     true
+    ],
+    "T51": [
+     true,
+     true
+    ],
+    "T52": [
+     false,
+     false
+    ],
+    "T53": [
+     true,
+     true
+    ],
+    "T54": [
+     false,
+     false
+    ],
+    "T55": [
+     false,
+     false
+    ],
+    "T56": [
+     false,
+     false
+    ],
+    "T57": [
+     false,
+     false
+    ],
+    "T58": [
+     false,
+     false
+    ],
+    "T59": [
+     true,
+     true
+    ],
+    "T60": [
+     false,
+     false
+    ],
+    "T61": [
+     false,
+     false
+    ],
+    "T62": [
+     true,
+     true
+    ],
+    "T63": [
+     true,
+     true
+    ],
+    "T64": [
+     true,
+     true
+    ],
+    "T65": [
+     true,
+     true
+    ],
+    "T66": [
+     true,
+     true
+    ],
+    "T67": [
+     true,
+     true
+    ],
+    "T68": [
+     false,
+     false
+    ],
+    "T69": [
+     true,
+     true
+    ],
+    "T70": [
+     false,
+     false
+    ],
+    "T71": [
+     false,
+     false
+    ],
+    "T72": [
+     false,
+     false
+    ],
+    "T73": [
+     false,
+     false
+    ],
+    "T74": [
+     false,
+     false
+    ],
+    "T75": [
+     false,
+     false
+    ]
+   },
+   "qwen36": {
+    "T01": [
+     false,
+     false
+    ],
+    "T02": [
+     true,
+     true
+    ],
+    "T03": [
+     true,
+     true
+    ],
+    "T04": [
+     true,
+     true
+    ],
+    "T05": [
+     true,
+     true
+    ],
+    "T06": [
+     true,
+     true
+    ],
+    "T07": [
+     true,
+     true
+    ],
+    "T08": [
+     true,
+     true
+    ],
+    "T09": [
+     true,
+     true
+    ],
+    "T10": [
+     true,
+     true
+    ],
+    "T11": [
+     true,
+     true
+    ],
+    "T12": [
+     true,
+     true
+    ],
+    "T13": [
+     true,
+     true
+    ],
+    "T14": [
+     true,
+     true
+    ],
+    "T15": [
+     true,
+     true
+    ],
+    "T16": [
+     true,
+     true
+    ],
+    "T17": [
+     true,
+     true
+    ],
+    "T18": [
+     true,
+     true
+    ],
+    "T19": [
+     true,
+     true
+    ],
+    "T20": [
+     true,
+     true
+    ],
+    "T21": [
+     true,
+     true
+    ],
+    "T22": [
+     true,
+     true
+    ],
+    "T23": [
+     true,
+     true
+    ],
+    "T24": [
+     true,
+     true
+    ],
+    "T25": [
+     true,
+     true
+    ],
+    "T26": [
+     true,
+     true
+    ],
+    "T27": [
+     true,
+     true
+    ],
+    "T28": [
+     true,
+     true
+    ],
+    "T29": [
+     true,
+     true
+    ],
+    "T30": [
+     true,
+     true
+    ],
+    "T31": [
+     true,
+     true
+    ],
+    "T32": [
+     true,
+     true
+    ],
+    "T33": [
+     true,
+     true
+    ],
+    "T34": [
+     true,
+     true
+    ],
+    "T35": [
+     false,
+     false
+    ],
+    "T36": [
+     true,
+     true
+    ],
+    "T37": [
+     true,
+     true
+    ],
+    "T38": [
+     true,
+     true
+    ],
+    "T39": [
+     true,
+     true
+    ],
+    "T40": [
+     true,
+     true
+    ],
+    "T41": [
+     false,
+     false
+    ],
+    "T42": [
+     true,
+     true
+    ],
+    "T43": [
+     false,
+     false
+    ],
+    "T44": [
+     true,
+     true
+    ],
+    "T45": [
+     true,
+     true
+    ],
+    "T46": [
+     true,
+     true
+    ],
+    "T47": [
+     false,
+     false
+    ],
+    "T48": [
+     true,
+     true
+    ],
+    "T49": [
+     true,
+     true
+    ],
+    "T50": [
+     true,
+     true
+    ],
+    "T51": [
+     true,
+     true
+    ],
+    "T52": [
+     true,
+     true
+    ],
+    "T53": [
+     true,
+     true
+    ],
+    "T54": [
+     true,
+     true
+    ],
+    "T55": [
+     true,
+     true
+    ],
+    "T56": [
+     true,
+     true
+    ],
+    "T57": [
+     true,
+     true
+    ],
+    "T58": [
+     false,
+     false
+    ],
+    "T59": [
+     true,
+     true
+    ],
+    "T60": [
+     true,
+     true
+    ],
+    "T61": [
+     true,
+     true
+    ],
+    "T62": [
+     true,
+     true
+    ],
+    "T63": [
+     true,
+     true
+    ],
+    "T64": [
+     true,
+     true
+    ],
+    "T65": [
+     true,
+     true
+    ],
+    "T66": [
+     true,
+     true
+    ],
+    "T67": [
+     true,
+     true
+    ],
+    "T68": [
+     true,
+     true
+    ],
+    "T69": [
+     true,
+     true
+    ],
+    "T70": [
+     true,
+     true
+    ],
+    "T71": [
+     true,
+     true
+    ],
+    "T72": [
+     true,
+     true
+    ],
+    "T73": [
+     false,
+     false
+    ],
+    "T74": [
+     true,
+     true
+    ],
+    "T75": [
+     true,
+     true
+    ]
+   }
+  },
+  "a_hard": {
+   "lfm25": {
+    "H01": [
+     false,
+     false
+    ],
+    "H02": [
+     false,
+     false
+    ],
+    "H03": [
+     false,
+     false
+    ],
+    "H04": [
+     false,
+     false
+    ],
+    "H05": [
+     false,
+     false
+    ],
+    "H06": [
+     false,
+     false
+    ],
+    "H07": [
+     false,
+     false
+    ],
+    "H08": [
+     false,
+     false
+    ],
+    "H09": [
+     false,
+     false
+    ],
+    "H10": [
+     false,
+     false
+    ],
+    "H11": [
+     false,
+     false
+    ],
+    "H12": [
+     false,
+     false
+    ],
+    "H13": [
+     false,
+     false
+    ],
+    "H14": [
+     false,
+     false
+    ],
+    "H15": [
+     true,
+     true
+    ],
+    "H16": [
+     false,
+     false
+    ],
+    "H17": [
+     true,
+     true
+    ],
+    "H18": [
+     false,
+     false
+    ],
+    "H19": [
+     false,
+     false
+    ],
+    "H20": [
+     true,
+     true
+    ],
+    "H21": [
+     false,
+     false
+    ],
+    "H22": [
+     false,
+     false
+    ],
+    "H23": [
+     true,
+     true
+    ],
+    "H24": [
+     true,
+     true
+    ],
+    "H25": [
+     false,
+     false
+    ]
+   },
+   "qwen36": {
+    "H01": [
+     false,
+     false
+    ],
+    "H02": [
+     true,
+     true
+    ],
+    "H03": [
+     true,
+     true
+    ],
+    "H04": [
+     false,
+     false
+    ],
+    "H05": [
+     true,
+     true
+    ],
+    "H06": [
+     false,
+     false
+    ],
+    "H07": [
+     true,
+     true
+    ],
+    "H08": [
+     true,
+     true
+    ],
+    "H09": [
+     true,
+     true
+    ],
+    "H10": [
+     false,
+     false
+    ],
+    "H11": [
+     false,
+     false
+    ],
+    "H12": [
+     true,
+     true
+    ],
+    "H13": [
+     true,
+     true
+    ],
+    "H14": [
+     false,
+     false
+    ],
+    "H15": [
+     true,
+     true
+    ],
+    "H16": [
+     false,
+     false
+    ],
+    "H17": [
+     true,
+     true
+    ],
+    "H18": [
+     true,
+     true
+    ],
+    "H19": [
+     true,
+     true
+    ],
+    "H20": [
+     true,
+     true
+    ],
+    "H21": [
+     true,
+     true
+    ],
+    "H22": [
+     false,
+     false
+    ],
+    "H23": [
+     true,
+     true
+    ],
+    "H24": [
+     true,
+     true
+    ],
+    "H25": [
+     false,
+     false
+    ]
+   }
+  }
+ }
+}
