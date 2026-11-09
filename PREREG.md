@@ -1,6 +1,6 @@
 # Pre-registration — LFM3-1.7B at tool calling
 
-Status: **prediction and rules registered 2026-11-06; not yet frozen.** Nothing has run. The author's prediction and chosen rules are below.
+Status: **frozen 2026-11-09 07:46 UTC.** The rules, tasks and harness below are fixed; the test arms run only after this point.
 
 Sequence: (1) this file, with the prediction and rules, is pushed before any model runs. (2) The author asks Liquid AI for its settings in the HF thread and waits up to 48 hours (until 2026-11-08 ~20:00 UTC); an answer received by then sets arms A and C's sampler, otherwise the card's tool-use setting stands. (3) Difficulty check: Gemma 4 E4B (not a test arm) on C1–C8. (4) Freeze: Part B public tasks published, every task and harness file hashed in this file, pushed. (5) Only then does any test arm (A, B, C) see a test task.
 
@@ -8,7 +8,7 @@ Held Out Lab. Tasks, harness and analysis: Claude (Anthropic). Prediction, rule 
 
 ## Claims under test
 
-1. **"Our LFM3-1.7B, released today, shows better performance on your benchmark."** Maxime Labonne (Liquid AI organisation account `mlabonne`), Hugging Face discussion #12 on LiquidAI/LFM2.5-24B-A2B, in reply to this lab's LFM2.5 test. No score, checkpoint or settings were given. The author replied that LFM3-1.7B would be run at full precision on the 75 public tasks plus the 40 private ones. "Your benchmark" = github.com/heldoutlab/lfm25-tools-test, on which LFM2.5-24B-A2B solved 37 of 75 (49.3%).
+1. **"Actually, our LFM3-1.7B, released today, shows better performance on your benchmark."** Maxime Labonne (Liquid AI organisation account `mlabonne`), Hugging Face discussion #12 on LiquidAI/LFM2.5-24B-A2B, in reply to this lab's LFM2.5 test (2026-10-28 00:33 UTC). No score, checkpoint or settings were given. The author replied that LFM3-1.7B would be run at full precision on the 75 public tasks plus the 40 private ones. "Your benchmark" = github.com/heldoutlab/lfm25-tools-test, on which LFM2.5-24B-A2B solved 37 of 75 (49.3%).
 2. **LFM3-1.7B "leads on … function calling"** against Qwen3.5-4B and Qwen3.5-9B (launch post, liquid.ai/blog/lfm3, 2026-10-27; model card).
 
 ### Vendor's own table (model card, read 2026-11-05)
@@ -114,7 +114,7 @@ With 30 tasks per family, the 95% interval on a paired gap is about ±15–18 po
 
 ## Time and cost (estimates — UNVERIFIED until the pilot)
 
-About 650 task-runs: Part B 60 × (A, B, C main + A, B noise) + 60 × 3 private + Part A 140 × A + pilot 32. Small models; guess 1–3 minutes each → 11–33 hours of laptop time. $0. Downloads 17.97 GB (approved 2026-11-06).
+About 650 task-runs: Part B 60 × (A, B, C main + A, B noise) + 60 × 3 private + Part A 140 × A + pilot 32. Small models; guess 1–3 minutes each → 11–33 hours of laptop time. **Revised from the pilot (2026-11-07): about 38 hours** — Part B about 26 h (Qwen's multi-step tasks average almost 8 minutes), Part A about 12 h at LFM3's multi-step pace. $0. Downloads 17.97 GB (approved 2026-11-06).
 
 ## Risks and how the design answers them
 
@@ -154,9 +154,53 @@ Wrong if: LFM3 beats 37/75 on Part A, or if it trails Qwen on single-call benchm
 
 **Task-set notes.** Part B tasks accept the same argument coercions as the LFM2.5 test ("250" → 250, "true" → true, a null optional = omitted), plus one new one: an array sent as a JSON string is parsed. Schemas may contain arrays of flat objects (one level deep). The veterinary clinic and warehouse domains sit near the Bonsai test's clinic and inventory domains in subject only; their tools, entities and rules are new.
 
+## Difficulty check result (2026-11-07, before the freeze)
+
+Gemma 4 E4B Q4_K_M (arm G, seed 7, build cd959bae9) on C1–C8: **4 of 8** (strict = lenient), inside the 4–6 target, so **no task was changed**. It solved all 4 single-call tasks (C1, C3, C5, C7) and none of the 4 multi-step ones (C2, C4, C6, C8). Each multi-step failure was a one-turn reply with no tool call in any format: it asked the user for IDs or wrote out a plan instead of calling the tools. No cap-outs, repairs or tool errors. Total 65 seconds. Raw records: `results/pilot/G.jsonl`.
+
+**Timing and template pilot (2026-11-07, before the freeze).** Arms A, C, B on C1–C8 (calibration tasks only; no test task seen), seed 7, card sampler for LFM3. llama-server parsed every tool call natively for all three arms (0 repairs, 0 calls recovered from text); every turn carried reasoning, so thinking was on; model hashes and build matched. No cap-outs. Calibration scores (8 tasks, not evidence of anything): LFM3 BF16 6/8, LFM3 Q4_K_M 7/8, Qwen3.5-4B 7/8. Mean seconds per task, single-call / multi-step: LFM3 BF16 20 / 300, Qwen3.5-4B 33 / 469, LFM3 Q4_K_M 20 / 302. Decode: 38, 16 and 51 tokens/s. Raw records: `results/pilot/`.
+
 ## Frozen hashes
 
-(filled at the freeze: sha256 of every task file, harness file and this file's rule section)
+**Frozen 2026-11-09 07:46 UTC.** After this commit no task, check, harness file or rule changes; any later change is listed under *Deviations after freezing* with its reason.
+
+- **Liquid AI's answer to the settings question:** no answer by the deadline (2026-11-08 20:00 UTC); Liquid's model-card settings used
+- **Samplers used:** LFM3 (A, C) {"temperature": 0.1, "top_k": 50, "repeat_penalty": 1.1, "top_p": 1.0, "min_p": 0.0, "presence_penalty": 0.0}; Qwen3.5-4B (B) {"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 1.5, "repeat_penalty": 1.0}.
+- **PREREG.md above this heading:** sha256 `da87e211a278eb8447031b67ff41f349217f9c80a3164cec4d5108d54eb7bf21` (the text from the first line to the end of the section before this one).
+- Private files are listed by hash only; they are never published.
+
+| File | Bytes | sha256 |
+|---|---:|---|
+| `fetch.py` | 4,210 | `be6c4068ea1b0ee644fe233564ab80a17f09f076696179999eedffb1030b4292` |
+| `harness/config.py` | 7,056 | `336d81b99bdcecd19844fbdb419f99b70cb9b3b60d123f24856a4f126857b455` |
+| `harness/run.py` | 14,451 | `9cc40c65be348b48cdb6516521b4c231a3fe9f4fba5e75ef9ca35fe7cf58f16e` |
+| `harness/grade.py` | 7,026 | `2956857e54e4d5f2b20e0bc1098b112e5c88ffa7d4b01cd4c689a0eabc0f3200` |
+| `harness/analyze.py` | 16,876 | `35a0fdd7a42a76949f8f1d937958ec77183422bf6f94033e7c5a50889ebe8426` |
+| `harness/regrade.py` | 2,295 | `c3a470c69e4696a37a9ccdd840684fe4cc2287a11b0fc5ed441869408f8774dd` |
+| `items_public/tool_items.py` | 338,491 | `0c10158d395416ac19a2a79fe799e3fdaa2dba92ffab90ebdae115547659d35e` |
+| `items_partA/tool_items.py` | 360,366 | `c947665e6e4f0fe349e01b365f94e5f688a1ee462465f84a942c93c851817f2e` |
+| `items_partA/tool_items_hard.py` | 103,471 | `536640c6c47268ba108af0c01dde4321ec510a4aef4f464fcfa961cbbc4e74fa` |
+| `reference/lfm25_partA.json` | 9,051 | `a39dfd528443faa8d54a0797d2fb09bfa53bef84d113b569bb4a6b29a272ae64` |
+| `items_private/tool_items.py` (private: hash only) | 287,481 | `281557da481130544b8b87ec6c8bc6e4103a0a3a2f213171ccedeeaf02d172f9` |
+| `items_private/partA_tool_items.py` (private: hash only) | 259,156 | `dad6591c786eee2e0f6e7f62887aafce3204847f4414a5461f4864805600191a` |
+| `results/private/reference/lfm25_partA_private.json` (private: hash only) | 3,803 | `c41724e6c79adc915c78d86cd6e4cad7073afeb780dcff5fbce1210ae0936243` |
+| `results/pilot/A.jsonl` | 398,252 | `8aac0c8e450eba3ec2df3a39d65383b974edb65efe2e5be62db95505de66d0fc` |
+| `results/pilot/A.manifest.jsonl` | 2,559 | `4468d1c000fac94e60a5cb8e232ea2b408504c4030ffa98ad377bf8454d93f6c` |
+| `results/pilot/A.rendered_prompt.txt` | 61,169 | `6ae9372dca9c2515b008dcc02fb92240a508eee6f0e45bfde7665c0048f49446` |
+| `results/pilot/A.server.log` | 115,890 | `4b1c8e566c3fd8320ffd210b8f1541c6b9c3dc7fd7d38d0a1614d6a4f4ec55c5` |
+| `results/pilot/B.jsonl` | 301,215 | `f8475e7611cb11b00965faad681e3834d4e92221ee84aafae1a130cdd9a6187b` |
+| `results/pilot/B.manifest.jsonl` | 2,539 | `76c1a14bfd80773ddc7ef7922df15f09813ff5901b100fa62a7db3ec5e574ba7` |
+| `results/pilot/B.rendered_prompt.txt` | 43,119 | `1fcbc1b3359d6c1bd8b35a0628db1b2127000ae6bfe411ad181c180090ed09a4` |
+| `results/pilot/B.server.log` | 110,840 | `cf35ab06346deb7ba69e039848c964a901ebeb2ab0b91bc0ecbb1caaa5e85790` |
+| `results/pilot/C.jsonl` | 448,165 | `4cdd46cedebaf24c2587165c427b695e77fbcf3f26d89246f57689c83913caaf` |
+| `results/pilot/C.manifest.jsonl` | 2,601 | `ab2e79819c8cdcfb557212788d0273e87e0c833451e8be317dca4ce2bb9771af` |
+| `results/pilot/C.rendered_prompt.txt` | 67,149 | `fb5acacea3ada93b91262092c99df1e00014f2b587ace17123701cc8998c000b` |
+| `results/pilot/C.server.log` | 111,706 | `fedbf913c7b6145f448f93c4eddddf63e726c5aad308c27f3eecd5129cad5c3d` |
+| `results/pilot/G.jsonl` | 141,785 | `02d327a111e56e646d26d4ef0d31b826b775f8cff9d6b5e4cee9e9fc3480ac90` |
+| `results/pilot/G.manifest.jsonl` | 2,596 | `771aaea806755dfcd399d6bdbd0fd9082407595e73f13b5697bfaac6c29a0677` |
+| `results/pilot/G.rendered_prompt.txt` | 8,304 | `df46f2bcbf4caa9cfe1292f2a9f8e096f6147a79cbb05a588de25eebc85ccff5` |
+| `results/pilot/G.server.log` | 14,711 | `73c8dcee7c4f958bdeb3a71b366f4346f74431873a92506fde1f9444d615b759` |
+| `results/pilot/report_pilot.json` | 3,787 | `4706838794384ea485db169a0a534ceab464b404499f7950ddb22c90f1cb8911` |
 
 ## Deviations after freezing
 
