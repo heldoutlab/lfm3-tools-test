@@ -204,4 +204,7 @@ Gemma 4 E4B Q4_K_M (arm G, seed 7, build cd959bae9) on C1–C8: **4 of 8** (stri
 
 ## Deviations after freezing
 
-(none yet)
+No task, check, harness file or rule changed after the freeze.
+
+- **How the last two steps were started (2026-11-11).** The unattended run queue waits for mains power before each step. After it had waited about 18 hours before the noise-floor reruns (`noise/A`, `noise/B`), I stopped it and started those two steps by hand on battery, with a stand-in script calling the same harness with the same seeds, settings and model files. Only their scores are used (for the noise floor); their timings are not. Log: `results/progress.txt`.
+- **Recorded for completeness, not a deviation.** On 9 November, roughly 13:10–15:20 UTC, one Part A turn (task T36) ran at 1.7 tokens/s instead of the usual 28–42, most likely because the laptop was asleep or busy. Scores are unaffected; Part A's timing figures in `report.json` include that turn.

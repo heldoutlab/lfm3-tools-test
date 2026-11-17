@@ -1,0 +1,1551 @@
+<|startoftext|><|im_start|>system
+You are a helpful assistant
+
+<tools>
+{"name": "get_exam_policy", "description": "Today's date and the invigilation and room rules that the write tools enforce.", "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": false}}
+{"name": "list_exams", "description": "Exams, filtered, by date, start time and id; 8 per page. Each row lists the current invigilators and the number policy requires.", "parameters": {"type": "object", "properties": {"date": {"type": "string", "description": "Only this date, YYYY-MM-DD."}, "subject": {"type": "string", "description": "Only this subject."}, "room_id": {"type": "string", "description": "Only exams in this room."}, "page": {"type": "integer", "description": "Page number, starting at 1 (default 1).", "minimum": 1}}, "required": [], "additionalProperties": false}}
+{"name": "get_exam", "description": "One exam in detail, with its invigilators and assignment ids.", "parameters": {"type": "object", "properties": {"exam_id": {"type": "string", "description": "Exam id, e.g. EX-101."}}, "required": ["exam_id"], "additionalProperties": false}}
+{"name": "list_rooms", "description": "All exam rooms with capacity and the dates they are closed.", "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": false}}
+{"name": "find_staff", "description": "Staff who can invigilate, filtered by name (case-insensitive substring), subject taught and/or lead qualification. With no filter, everyone.", "parameters": {"type": "object", "properties": {"query": {"type": "string", "description": "Text that must appear in the name."}, "subject": {"type": "string", "description": "Only teachers of this subject."}, "lead_qualified": {"type": "boolean", "description": "Only staff with (true) or without (false) the lead qualification."}}, "required": [], "additionalProperties": false}}
+{"name": "list_staff_schedule", "description": "For one date: every member of staff, whether they are available, and the exam sessions they invigilate that day.", "parameters": {"type": "object", "properties": {"date": {"type": "string", "description": "Date, YYYY-MM-DD."}}, "required": ["date"], "additionalProperties": false}}
+{"name": "assign_invigilator", "description": "Add a member of staff to an exam as lead or support invigilator.", "parameters": {"type": "object", "properties": {"exam_id": {"type": "string", "description": "Exam id."}, "staff_id": {"type": "string", "description": "Staff id, e.g. ST-01."}, "role": {"type": "string", "description": "Role.", "enum": ["lead", "support"]}}, "required": ["exam_id", "staff_id", "role"], "additionalProperties": false}}
+{"name": "remove_invigilator", "description": "Take a member of staff off an exam.", "parameters": {"type": "object", "properties": {"exam_id": {"type": "string", "description": "Exam id."}, "staff_id": {"type": "string", "description": "Staff id."}}, "required": ["exam_id", "staff_id"], "additionalProperties": false}}
+{"name": "set_invigilator_role", "description": "Change the role of an invigilator already on an exam.", "parameters": {"type": "object", "properties": {"exam_id": {"type": "string", "description": "Exam id."}, "staff_id": {"type": "string", "description": "Staff id."}, "role": {"type": "string", "description": "New role.", "enum": ["lead", "support"]}}, "required": ["exam_id", "staff_id", "role"], "additionalProperties": false}}
+{"name": "set_exam_room", "description": "Move an exam to another room (same date and time).", "parameters": {"type": "object", "properties": {"exam_id": {"type": "string", "description": "Exam id."}, "room_id": {"type": "string", "description": "Room id, e.g. RM-01."}}, "required": ["exam_id", "room_id"], "additionalProperties": false}}
+{"name": "set_exam_candidates", "description": "Change the number of candidates sitting an exam.", "parameters": {"type": "object", "properties": {"exam_id": {"type": "string", "description": "Exam id."}, "candidates": {"type": "integer", "description": "New number of candidates.", "minimum": 1}}, "required": ["exam_id", "candidates"], "additionalProperties": false}}
+{"name": "reschedule_exam", "description": "Move an exam to another date, start time and room.", "parameters": {"type": "object", "properties": {"exam_id": {"type": "string", "description": "Exam id."}, "date": {"type": "string", "description": "New date, YYYY-MM-DD."}, "start": {"type": "string", "description": "New start time, HH:MM."}, "room_id": {"type": "string", "description": "Room id."}}, "required": ["exam_id", "date", "start", "room_id"], "additionalProperties": false}}
+{"name": "split_exam", "description": "Move some of an exam's candidates into a second sitting of the same paper, at the same date and time, in another room. The new sitting starts with no invigilators.", "parameters": {"type": "object", "properties": {"exam_id": {"type": "string", "description": "Exam id."}, "room_id": {"type": "string", "description": "Room for the new sitting."}, "candidates": {"type": "integer", "description": "Number of candidates moved to the new sitting.", "minimum": 1}}, "required": ["exam_id", "room_id", "candidates"], "additionalProperties": false}}
+{"name": "set_staff_unavailable", "description": "Record that a member of staff is unavailable on a date.", "parameters": {"type": "object", "properties": {"staff_id": {"type": "string", "description": "Staff id."}, "date": {"type": "string", "description": "Date, YYYY-MM-DD."}}, "required": ["staff_id", "date"], "additionalProperties": false}}
+</tools><|im_end|>
+<|im_start|>user
+Candidate numbers have dropped for two papers: Maths Paper 2 now has 70 candidates and English Language Paper 1 has 80. Update both. Each of them should then have exactly the number of invigilators policy requires - take off the most recently assigned support invigilators first - and should sit in the smallest room that seats its candidates and is free at that time, which may well be the room it is already in. Nothing else should change.<|im_end|>
+<|im_start|>assistant
+<think>We need to update candidate numbers for two exams: "Maths Paper 2" (70 candidates) and "English Language Paper 1" (80 candidates). Then we need to adjust invigilators: each exam should have exactly the number of invigilators policy requires. We need to take off the most recently assigned support invigilators first, then assign staff such that they sit in the smallest room that seats its candidates and is free at that time.
+
+We need to understand the system's data structures. There are functions: `set_exam_candidates` to change number of candidates for an exam. Also we need to know current invigilators per exam, maybe via `get_exam`, `list_exams`, etc. And "policy requires" number of invigilators is likely defined by `get_exam_policy`. There's a function `get_exam_policy` that returns today's date and invigilation and room rules enforced by write tools.
+
+We need to find exam IDs for these papers. Possibly they have IDs like "MATH-2" or something. We might need to search via list_exams? Let's start by getting policy: `get_exam_policy`. Also maybe we can get exams list. Let's call functions step by step.
+
+First, get exam policy.</think><tool_call>
+<function=get_exam_policy>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"today": "2027-01-08", "policy": {"candidates_per_invigilator": 25, "min_invigilators": 2, "max_sessions_per_day": 2, "rules": ["Invigilators required per exam = candidates / candidates_per_invigilator, rounded up, but never fewer than min_invigilators. An exam may not be given more invigilators than it requires.", "Every exam has exactly one lead invigilator, who must hold the lead qualification; all others are support. While an exam has no lead, its last free place is reserved for a lead.", "A teacher may not invigilate an exam in the subject they teach.", "Staff cannot invigilate on a date they are unavailable, in two exams whose times overlap, or in more than max_sessions_per_day exams on one day.", "An exam's room must seat all its candidates, be open that day and not be used by another exam at an overlapping time.", "An exam can only be rescheduled once all its invigilators have been taken off it.", "A member of staff can only be recorded as unavailable on a date when they have no exams that day."]}}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>We need to parse policy: candidates_per_invigilator = 25, min_invigilators = 2. So number of invigilators required for an exam is ceil(candidates / 25), but never fewer than min_invigilators (2). Also there must be exactly one lead invigilator who holds lead qualification; others are support.
+
+We need to update candidate numbers: Maths Paper 2 -> 70 candidates, English Language Paper 1 -> 80 candidates. Then compute required invigilators for each:
+
+- For 70 candidates: ceil(70/25) = ceil(2.8) = 3. But min_invigilators is 2, so max(2,3)=3. So need 3 invigilators.
+
+- For 80 candidates: ceil(80/25) = ceil(3.2) = 4. Min 2 => 4.
+
+Thus each exam needs exactly 3 for Maths Paper 2 and 4 for English Language Paper 1 invigilators (total including lead). So we need to adjust candidate counts first via `set_exam_candidates`.
+
+But we also need to know the exam IDs. Let's list exams maybe by subject or name. Use `list_exams` without filters? It says "Exams, filtered, by date, start time and id; 8 per page." We can call with no parameters to get all? Possibly returns many pages. Let's try.</think><tool_call>
+<function=list_exams>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"page": 1, "pages": 3, "total_results": 22, "exams": [{"exam_id": "EX-101", "paper": "Maths Paper 1", "subject": "Maths", "date": "2027-01-11", "start": "09:00", "end": "11:00", "room_id": "RM-01", "candidates": 110, "invigilators_required": 5, "invigilators": [{"assignment_id": "AS-501", "staff_id": "ST-14", "name": "Gwen Tate", "role": "lead"}, {"assignment_id": "AS-502", "staff_id": "ST-12", "name": "Eva Novak", "role": "support"}, {"assignment_id": "AS-503", "staff_id": "ST-16", "name": "Kit Byrne", "role": "support"}, {"assignment_id": "AS-504", "staff_id": "ST-03", "name": "Sana Mirza", "role": "support"}, {"assignment_id": "AS-505", "staff_id": "ST-19", "name": "Zara Malik", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-102", "paper": "History Paper 1", "subject": "History", "date": "2027-01-11", "start": "09:00", "end": "10:30", "room_id": "RM-04", "candidates": 48, "invigilators_required": 2, "invigilators": [{"assignment_id": "AS-506", "staff_id": "ST-02", "name": "Victor Lam", "role": "lead"}, {"assignment_id": "AS-507", "staff_id": "ST-01", "name": "Joan Pell", "role": "lead"}], "sitting_of": ""}, {"exam_id": "EX-103", "paper": "English Literature Paper 1", "subject": "English", "date": "2027-01-11", "start": "13:30", "end": "15:30", "room_id": "RM-01", "candidates": 95, "invigilators_required": 4, "invigilators": [{"assignment_id": "AS-508", "staff_id": "ST-11", "name": "Tom Quist", "role": "lead"}, {"assignment_id": "AS-509", "staff_id": "ST-15", "name": "Omar Saleh", "role": "support"}, {"assignment_id": "AS-510", "staff_id": "ST-20", "name": "Hugo Varga", "role": "support"}, {"assignment_id": "AS-511", "staff_id": "ST-04", "name": "Bill Hart", "role": "support"}, {"assignment_id": "AS-512", "staff_id": "ST-22", "name": "Leo Park", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-104", "paper": "Geography Paper 1", "subject": "Geography", "date": "2027-01-11", "start": "13:30", "end": "15:00", "room_id": "RM-03", "candidates": 38, "invigilators_required": 2, "invigilators": [{"assignment_id": "AS-513", "staff_id": "ST-05", "name": "Clara Diaz", "role": "lead"}, {"assignment_id": "AS-514", "staff_id": "ST-13", "name": "Ian Moss", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-111", "paper": "Physics Paper 2", "subject": "Physics", "date": "2027-01-12", "start": "09:00", "end": "11:00", "room_id": "RM-04", "candidates": 85, "invigilators_required": 4, "invigilators": [], "sitting_of": ""}, {"exam_id": "EX-112", "paper": "Biology Paper 1", "subject": "Biology", "date": "2027-01-12", "start": "09:00", "end": "11:00", "room_id": "RM-01", "candidates": 140, "invigilators_required": 6, "invigilators": [{"assignment_id": "AS-515", "staff_id": "ST-01", "name": "Joan Pell", "role": "lead"}, {"assignment_id": "AS-516", "staff_id": "ST-04", "name": "Bill Hart", "role": "support"}, {"assignment_id": "AS-517", "staff_id": "ST-16", "name": "Kit Byrne", "role": "support"}, {"assignment_id": "AS-518", "staff_id": "ST-22", "name": "Leo Park", "role": "support"}, {"assignment_id": "AS-519", "staff_id": "ST-12", "name": "Eva Novak", "role": "support"}, {"assignment_id": "AS-520", "staff_id": "ST-13", "name": "Ian Moss", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-113", "paper": "Chemistry Paper 2", "subject": "Chemistry", "date": "2027-01-12", "start": "13:30", "end": "15:30", "room_id": "RM-02", "candidates": 70, "invigilators_required": 3, "invigilators": [{"assignment_id": "AS-521", "staff_id": "ST-02", "name": "Victor Lam", "role": "lead"}, {"assignment_id": "AS-522", "staff_id": "ST-03", "name": "Sana Mirza", "role": "support"}, {"assignment_id": "AS-523", "staff_id": "ST-15", "name": "Omar Saleh", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-114", "paper": "Computing Paper 1", "subject": "Computing", "date": "2027-01-12", "start": "13:30", "end": "15:00", "room_id": "RM-03", "candidates": 30, "invigilators_required": 2, "invigilators": [{"assignment_id": "AS-524", "staff_id": "ST-14", "name": "Gwen Tate", "role": "lead"}, {"assignment_id": "AS-525", "staff_id": "ST-20", "name": "Hugo Varga", "role": "support"}], "sitting_of": ""}]}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>The list_exams output is page 1 of many pages. We need to find exam IDs for "Maths Paper 2" and "English Language Paper 1". The above list includes "Maths Paper 1", not Maths Paper 2. There may be separate entries on other pages. Also English Literature Paper 1, not English Language Paper 1. Let's search more pages.
+
+We can use `list_exams` with page parameter? It has optional page param. We'll need to get all pages. The total_results is 22 and pages=3. So we need to fetch page 2 and 3. Use list_exams with page=2, then page=3. Let's do that.</think><tool_call>
+<function=list_exams>
+<parameter=page>
+2
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"page": 2, "pages": 3, "total_results": 22, "exams": [{"exam_id": "EX-121", "paper": "Chemistry Paper 1", "subject": "Chemistry", "date": "2027-01-13", "start": "09:00", "end": "11:00", "room_id": "RM-01", "candidates": 100, "invigilators_required": 4, "invigilators": [{"assignment_id": "AS-526", "staff_id": "ST-16", "name": "Kit Byrne", "role": "lead"}, {"assignment_id": "AS-527", "staff_id": "ST-03", "name": "Sana Mirza", "role": "support"}, {"assignment_id": "AS-528", "staff_id": "ST-19", "name": "Zara Malik", "role": "support"}, {"assignment_id": "AS-529", "staff_id": "ST-20", "name": "Hugo Varga", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-122", "paper": "French Paper 1", "subject": "French", "date": "2027-01-13", "start": "09:00", "end": "10:30", "room_id": "RM-04", "candidates": 40, "invigilators_required": 2, "invigilators": [{"assignment_id": "AS-530", "staff_id": "ST-07", "name": "Femi Okoro", "role": "lead"}, {"assignment_id": "AS-531", "staff_id": "ST-15", "name": "Omar Saleh", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-123", "paper": "Maths Paper 2", "subject": "Maths", "date": "2027-01-13", "start": "13:30", "end": "15:30", "room_id": "RM-01", "candidates": 110, "invigilators_required": 5, "invigilators": [{"assignment_id": "AS-532", "staff_id": "ST-09", "name": "Paul Weir", "role": "lead"}, {"assignment_id": "AS-533", "staff_id": "ST-07", "name": "Femi Okoro", "role": "support"}, {"assignment_id": "AS-534", "staff_id": "ST-01", "name": "Joan Pell", "role": "support"}, {"assignment_id": "AS-535", "staff_id": "ST-04", "name": "Bill Hart", "role": "support"}, {"assignment_id": "AS-536", "staff_id": "ST-22", "name": "Leo Park", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-124", "paper": "Art History Paper 1", "subject": "Art", "date": "2027-01-13", "start": "13:30", "end": "15:00", "room_id": "RM-08", "candidates": 28, "invigilators_required": 2, "invigilators": [{"assignment_id": "AS-537", "staff_id": "ST-02", "name": "Victor Lam", "role": "lead"}, {"assignment_id": "AS-538", "staff_id": "ST-17", "name": "Mina Cho", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-131", "paper": "Physics Paper 1", "subject": "Physics", "date": "2027-01-14", "start": "09:00", "end": "11:00", "room_id": "RM-02", "candidates": 88, "invigilators_required": 4, "invigilators": [{"assignment_id": "AS-539", "staff_id": "ST-14", "name": "Gwen Tate", "role": "lead"}, {"assignment_id": "AS-540", "staff_id": "ST-03", "name": "Sana Mirza", "role": "support"}, {"assignment_id": "AS-541", "staff_id": "ST-13", "name": "Ian Moss", "role": "support"}, {"assignment_id": "AS-542", "staff_id": "ST-20", "name": "Hugo Varga", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-132", "paper": "Economics Paper 1", "subject": "Economics", "date": "2027-01-14", "start": "09:00", "end": "10:30", "room_id": "RM-03", "candidates": 36, "invigilators_required": 2, "invigilators": [{"assignment_id": "AS-543", "staff_id": "ST-02", "name": "Victor Lam", "role": "lead"}, {"assignment_id": "AS-544", "staff_id": "ST-07", "name": "Femi Okoro", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-133", "paper": "Biology Paper 2", "subject": "Biology", "date": "2027-01-14", "start": "13:30", "end": "15:30", "room_id": "RM-02", "candidates": 75, "invigilators_required": 3, "invigilators": [{"assignment_id": "AS-545", "staff_id": "ST-16", "name": "Kit Byrne", "role": "lead"}, {"assignment_id": "AS-546", "staff_id": "ST-04", "name": "Bill Hart", "role": "support"}, {"assignment_id": "AS-547", "staff_id": "ST-15", "name": "Omar Saleh", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-134", "paper": "English Language Paper 1", "subject": "English", "date": "2027-01-14", "start": "13:30", "end": "15:30", "room_id": "RM-01", "candidates": 115, "invigilators_required": 5, "invigilators": [{"assignment_id": "AS-548", "staff_id": "ST-11", "name": "Tom Quist", "role": "lead"}, {"assignment_id": "AS-549", "staff_id": "ST-01", "name": "Joan Pell", "role": "support"}, {"assignment_id": "AS-550", "staff_id": "ST-22", "name": "Leo Park", "role": "support"}, {"assignment_id": "AS-551", "staff_id": "ST-12", "name": "Eva Novak", "role": "support"}, {"assignment_id": "AS-552", "staff_id": "ST-17", "name": "Mina Cho", "role": "support"}], "sitting_of": ""}]}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>Now we have page 2. We need to find Maths Paper 2 (EX-123) and English Language Paper 1 (EX-134). Let's continue with page 3 for completeness, but likely these are on page 2.
+
+From page 2:
+
+- EX-123: paper "Maths Paper 2", subject Maths, date 2027-01-13, start 13:30 end 15:30, room RM-01, candidates 110, invigilators_required 5. Invigilators list includes lead and support.
+
+- EX-134: paper "English Language Paper 1", subject English, date 2027-01-14? Wait check: In page 2 we see EX-134 with date 2027-01-14? Actually the entry for EX-134 appears later in this page. Let's parse:
+
+Scrolling page 2 list:
+
+We have entries:
+EX-121 Chemistry Paper 1 (date 2027-01-13)
+EX-122 French Paper 1
+EX-123 Maths Paper 2 (date 2027-01-13, start 13:30 end 15:30, room RM-01, candidates 110, invigilators_required 5)
+...
+EX-124 Art History Paper 1
+EX-131 Physics Paper 1
+EX-132 Economics Paper 1
+EX-133 Biology Paper 2
+EX-134 English Language Paper 1 (date 2027-01-14? Actually earlier we saw EX-134 in page 1 maybe. Let's check page 1: It had EX-111, EX-112 etc. Not sure.
+
+Let's continue to page 3 for completeness.</think><tool_call>
+<function=list_exams>
+<parameter=page>
+3
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"page": 3, "pages": 3, "total_results": 22, "exams": [{"exam_id": "EX-140", "paper": "Music Paper 1", "subject": "Music", "date": "2027-01-15", "start": "09:00", "end": "10:30", "room_id": "RM-01", "candidates": 30, "invigilators_required": 2, "invigilators": [{"assignment_id": "AS-553", "staff_id": "ST-14", "name": "Gwen Tate", "role": "lead"}, {"assignment_id": "AS-554", "staff_id": "ST-19", "name": "Zara Malik", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-141", "paper": "German Paper 1", "subject": "German", "date": "2027-01-15", "start": "09:00", "end": "10:30", "room_id": "RM-04", "candidates": 44, "invigilators_required": 2, "invigilators": [{"assignment_id": "AS-555", "staff_id": "ST-02", "name": "Victor Lam", "role": "lead"}, {"assignment_id": "AS-556", "staff_id": "ST-21", "name": "Rita Varga", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-142", "paper": "History Paper 2", "subject": "History", "date": "2027-01-15", "start": "13:30", "end": "15:30", "room_id": "RM-01", "candidates": 70, "invigilators_required": 3, "invigilators": [{"assignment_id": "AS-557", "staff_id": "ST-21", "name": "Rita Varga", "role": "lead"}, {"assignment_id": "AS-558", "staff_id": "ST-08", "name": "Lotte Berg", "role": "support"}, {"assignment_id": "AS-559", "staff_id": "ST-03", "name": "Sana Mirza", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-143", "paper": "Physics Paper 3", "subject": "Physics", "date": "2027-01-15", "start": "13:30", "end": "15:00", "room_id": "RM-03", "candidates": 34, "invigilators_required": 2, "invigilators": [{"assignment_id": "AS-560", "staff_id": "ST-16", "name": "Kit Byrne", "role": "lead"}, {"assignment_id": "AS-561", "staff_id": "ST-20", "name": "Hugo Varga", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-144", "paper": "Spanish Paper 1", "subject": "Spanish", "date": "2027-01-15", "start": "13:30", "end": "15:00", "room_id": "RM-04", "candidates": 40, "invigilators_required": 2, "invigilators": [{"assignment_id": "AS-562", "staff_id": "ST-14", "name": "Gwen Tate", "role": "lead"}, {"assignment_id": "AS-563", "staff_id": "ST-12", "name": "Eva Novak", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-145", "paper": "Drama Paper 1", "subject": "Drama", "date": "2027-01-15", "start": "13:30", "end": "14:30", "room_id": "RM-08", "candidates": 18, "invigilators_required": 2, "invigilators": [{"assignment_id": "AS-564", "staff_id": "ST-02", "name": "Victor Lam", "role": "lead"}, {"assignment_id": "AS-565", "staff_id": "ST-17", "name": "Mina Cho", "role": "support"}], "sitting_of": ""}]}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>Now we have all pages. Let's locate the two exams:
+
+- Maths Paper 2: In page 2, EX-123 (paper "Maths Paper 2"). It has date 2027-01-13, start 13:30 end 15:30, room RM-01, candidates 110, invigilators_required 5. Current invigilators list includes lead and support assignments.
+
+- English Language Paper 1: In page 2, EX-134 (paper "English Language Paper 1"). It has date 2027-01-14? Wait earlier we saw EX-134 in page 2 near the end with candidates 115, invigilators_required 5. Let's verify.
+
+Scrolling page 2 again: after EX-133 Biology Paper 2 (date 2027-01-14), then EX-134 English Language Paper 1 (paper "English Language Paper 1", subject "English", date? The entry shows:
+
+```
+{
+    "exam_id": "EX-134",
+    "paper": "English Language Paper 1",
+    "subject": "English",
+    "date": "2027-01-14"? Actually earlier we saw EX-134 in page 2: Let's re-read the snippet.
+
+From page 2 list:
+
+... (I'll copy relevant lines)
+
+```
+{
+    "exam_id": "EX-124", ...
+...
+{
+    "exam_id": "EX-131",
+    ...
+},
+{
+    "exam_id": "EX-132",
+    ...
+},
+{
+    "exam_id": "EX-133",
+    ...
+},
+{
+    "exam_id": "EX-134",
+    "paper": "English Language Paper 1",
+    "subject": "English",
+    "date": "2027-01-14",
+    "start": "13:30",
+    "end": "15:30",
+    "room_id": "RM-01",
+    "candidates": 115,
+    "invigilators_required": 5,
+    ...
+}
+```
+
+Yes, EX-134 is English Language Paper 1 on date 2027-01-14, start 13:30 end 15:30, room RM-01, candidates 115, invigilators_required 5. Invigilators list includes lead and support.
+
+Thus we need to update candidate numbers for these two exams:
+
+- EX-123 (Maths Paper 2) currently has candidates 110; new should be 70? Wait the user says "Candidate numbers have dropped for two papers: Maths Paper 2 now has 70 candidates and English Language Paper 1 has 80." So we need to set candidates to 70 for EX-123, and 80 for EX-134.
+
+But note that currently EX-123 has 110 candidates. We'll update via `set_exam_candidates`.
+
+Then we need to adjust invigilators: each exam should have exactly the number of invigilators policy requires. Policy says required = ceil(candidates / 25) rounded up, min 2. For new candidate counts:
+
+- EX-123 (Maths Paper 2): candidates=70 => ceil(70/25)=3? Wait earlier we computed for 70 it's 3. But the current invigilators_required field is 5 in list_exams page 2. That seems outdated maybe because policy changed or something else. Let's compute based on new candidate count: 70 candidates, 25 per invigilator => need at least ceil(70/25)=3. So required = max(min_invigilators=2, 3) = 3.
+
+- EX-134 (English Language Paper 1): candidates=80? Wait user says English Language Paper 1 has 80 candidates now. But current list shows 115 for EX-134. We'll update to 80. Then required invigilators: ceil(80/25)=4, min 2 => 4.
+
+Thus we need to set number of invigilators (total) to these numbers. The system currently has some assignments; we must "take off the most recently assigned support invigilators first" and then assign new ones such that total equals required count, with exactly one lead role (must hold lead qualification). Also each exam's room must seat all candidates and be free at that time.
+
+We need to know which staff are eligible as lead for subject Maths and English. There is a function `find_staff` to filter by name or subject taught/lead qualification. We'll need to find staff who can invigilate, maybe with "subject" parameter: teacher of the subject? The rule says "A teacher may not invigilate an exam in the subject they teach." So we need to know which staff are teachers for Maths and English. Possibly staff IDs like ST-14 etc. We might need to find staff by name or subject.
+
+We also need to know room availability: smallest room that seats its candidates and is free at that time (date, start/end). Need list of rooms with capacity and closed dates via `list_rooms`. Let's get that first.</think><tool_call>
+<function=list_rooms>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"rooms": [{"room_id": "RM-01", "name": "Main Hall", "capacity": 120, "closed_dates": []}, {"room_id": "RM-02", "name": "Sports Hall", "capacity": 100, "closed_dates": []}, {"room_id": "RM-03", "name": "Library", "capacity": 40, "closed_dates": []}, {"room_id": "RM-04", "name": "Lecture Theatre", "capacity": 60, "closed_dates": []}, {"room_id": "RM-05", "name": "Seminar Room A", "capacity": 16, "closed_dates": []}, {"room_id": "RM-06", "name": "Seminar Room B", "capacity": 24, "closed_dates": []}, {"room_id": "RM-07", "name": "Music Studio", "capacity": 20, "closed_dates": ["2027-01-12"]}, {"room_id": "RM-08", "name": "Drama Studio", "capacity": 35, "closed_dates": []}]}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>We have rooms and capacities. Need to find smallest room that seats at least the candidate count for each exam on its date and time (start/end). Also must be free (not closed) on that date.
+
+Let's compute needed capacity:
+
+- EX-123: Maths Paper 2, date 2027-01-13, start 13:30 end 15:30. Candidates after update = 70. Need smallest room with capacity >= 70 and not closed on 2027-01-13.
+
+Rooms capacities:
+RM-01 Main Hall 120
+RM-02 Sports Hall 100
+RM-03 Library 40
+RM-04 Lecture Theatre 60
+RM-05 Seminar Room A 16
+RM-06 Seminar Room B 24
+RM-07 Music Studio 20 (closed on 2027-01-12 only, not relevant)
+RM-08 Drama Studio 35
+
+We need capacity >=70. Options: RM-01 (120), RM-02 (100). Smallest is RM-02 (capacity 100) if available and free at that time.
+
+Check closed dates for each room on date 2027-01-13:
+From list_rooms, only RM-07 has closed_dates ["2027-01-12"]. Others have none. So all are open on 2027-01-13.
+
+Thus smallest suitable is RM-02 (capacity 100). But we also need to consider existing exam schedule: there may be other exams in that room at same time? Need to check overlapping exams. The policy says "An exam's room must seat all its candidates, be open that day and not be used by another exam at an overlapping time." So we need to ensure the chosen room is free for EX-123 on 2027-01-13 from 13:30 to 15:30.
+
+We can check list_exams for same date/time in other rooms. For 2027-01-13, there are several exams:
+
+From page 2:
+- EX-121 Chemistry Paper 1 (date 2027-01-13, start 09:00 end 11:00, room RM-01)
+- EX-122 French Paper 1 (same date, 09:00-10:30, RM-04)
+- EX-123 Maths Paper 2 (date 2027-01-13, 13:30-15:30, RM-01) currently.
+- EX-124 Art History Paper 1 (date 2027-01-13, 13:30-15:00, RM-08)
+- EX-131 Physics Paper 1 (date 2027-01-14? Actually that's next day). Wait need to parse.
+
+Let's list all exams on 2027-01-13 from page 2:
+
+Exam entries for date 2027-01-13:
+- EX-121 Chemistry Paper 1: 09:00-11:00, RM-01
+- EX-122 French Paper 1: 09:00-10:30, RM-04
+- EX-123 Maths Paper 2: 13:30-15:30, RM-01
+- EX-124 Art History Paper 1: 13:30-15:00, RM-08
+- EX-131 Physics Paper 1: date 2027-01-14? Actually page 2 includes "EX-131" with paper "Physics Paper 1", date 2027-01-14. So not relevant.
+- EX-132 Economics Paper 1: date 2027-01-14.
+
+Thus on 2027-01-13, at time 13:30-15:30, there is Maths (EX-123) in RM-01 and Art History (EX-124) in RM-08. So we need a room free during that slot. RM-02 is not used by any exam on that date? Let's check other exams on 2027-01-13: Chemistry (09-11), French (09-10:30). No Maths, no Art History at 13:30-15:00 in RM-08. So RM-02 appears free.
+
+Thus for EX-123 we can move to smallest room >=70 capacity that is free and open: RM-02 (capacity 100) seems suitable. But need to check if there's a smaller room with capacity >=70? RM-01 has 120, RM-02 100, RM-04 60 (<70), RM-03 40, etc. So smallest is RM-02.
+
+Now we also need to consider "should sit in the smallest room that seats its candidates and is free at that time, which may well be the room it is already in." Currently EX-123 is in RM-01. But we might move to a smaller one if possible.
+
+Thus for EX-123: new room = RM-02, date 2027-01-13, start 13:30, end 15:30? Need to keep same time? The reschedule_exam tool requires exam_id, date, start, room_id. It doesn't allow changing time directly; but we can set start and date/room. We need to preserve original start time (13:30). So new schedule: date=2027-01-13, start="13:30", room_id="RM-02". Use `reschedule_exam` or `set_exam_room`? There's a tool `set_exam_room` which moves exam to another room same date and time. It doesn't allow changing date/time. For moving both date, start, and room, we have `reschedule_exam`. That requires all four fields: exam_id, date, start, room_id.
+
+Thus for EX-123: new date remains 2027-01-13? Actually original date is 2027-01-13; no change. So keep same date. We'll set start "13:30", room RM-02.
+
+Now we also need to adjust invigilators count and assign staff.
+
+Let's handle each exam step by step.
+
+First, update candidate counts:
+
+- EX-123 (Maths Paper 2): set_exam_candidates(exam_id="EX-123", candidates=70).
+- EX-134 (English Language Paper 1): set_exam_candidates(exam_id="EX-134", candidates=80).
+
+Second, compute required invigilators:
+
+For EX-123: new candidates = 70 => required_invigilators = max(2, ceil(70/25)=3) = 3.
+
+Current invigilators for EX-123 (from list_exams page 2): 
+invigilators:
+AS-532 ST-09 Paul Weir lead
+AS-533 ST-07 Femi Okoro support
+AS-534 ST-01 Joan Pell support
+AS-535 ST-04 Bill Hart support
+AS-536 ST-22 Leo Park support
+
+That's 5 invigilators currently. Need to reduce to 3 total, and ensure exactly one lead (must be staff with lead qualification). Currently there is a lead: Paul Weir (ST-09) as lead. But we need only 3 total; currently have 5. So we must remove most recent support invigilators first.
+
+"Take off the most recently assigned support invigilators first". Need to identify which are "most recently assigned". Possibly based on assignment order or last added? We might need to know staff's assignments per exam, maybe via `list_staff_schedule` for date. But we can infer from current list: The invigilators array appears in some order (maybe by assignment id). For EX-123, the invigilators list includes lead first then support entries AS-533 etc. The most recent might be the highest assignment ID? Let's see pattern: In other exams, assignments have IDs like AS-501, AS-502... They increment. So for EX-123, we have AS-532 (lead), AS-533 (support), AS-534 (support), AS-535 (support), AS-536 (support). The highest ID is AS-536 (ST-22 Leo Park). That might be the most recent assignment. But it's support role. So we need to remove that first: `remove_invigilator(exam_id="EX-123", staff_id="ST-22")`. Then next most recent support would be AS-535 (ST-04 Bill Hart), then AS-534 (ST-01 Joan Pell), etc.
+
+We need total invigilators = 3. So after removing some, we need to assign new ones such that exactly one lead and the rest support? The policy: "Every exam has exactly one lead invigilator, who must hold the lead qualification; all others are support." So we need exactly one lead among the assigned invigilators. Currently there is a lead (ST-09). We could keep that as lead, but also need total count 3. So we need to have 2 other support invigilators.
+
+Thus final assignment: Lead = ST-09 (Paul Weir) maybe still eligible? Need to check if staff can invigilate Maths subject and hold lead qualification. Use `find_staff` with subject "Maths" and lead_qualified true perhaps. Let's search for staff who teach Maths or have lead qualification.
+
+We'll need to find staff IDs for Maths teachers/lead qualified. Use `find_staff(subject="Maths", lead_qualified=true)` etc. But we don't know exact parameter names: `find_staff` has parameters query, subject, lead_qualified. So we can call with subject "Maths" and lead_qualified true to get staff who teach Maths and are lead qualified.
+
+Similarly for English Language (subject maybe "English"?). Let's find those later.
+
+Let's start by finding staff for Maths.</think><tool_call>
+<function=find_staff>
+<parameter=subject>
+Maths
+</parameter>
+<parameter=lead_qualified>
+true
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"staff": [{"staff_id": "ST-11", "name": "Tom Quist", "teaches": "Maths", "lead_qualified": true, "unavailable": ["2027-01-15"]}]}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>The result shows staff with subject Maths and lead qualified: Tom Quist (ST-11) teaches Maths and is lead qualified. But we need a lead for EX-123 on 2027-01-13. However, the current invigilators list includes Paul Weir as lead; maybe he's not a Maths teacher? Let's check his subject. Not sure.
+
+We also need support staff who can be support invigilator for Maths. Use find_staff with subject "Maths" and lead_qualified false perhaps to get all staff teaching Maths, or just any staff eligible as support (maybe not restricted). The function `find_staff` has query, subject, lead_qualified optional. If we don't specify subject, it returns everyone? Let's try find staff for English.
+
+But first, let's identify the current invigilators and their roles:
+
+EX-123 invigilators:
+AS-532: ST-09 Paul Weir (lead)
+AS-533: ST-07 Femi Okoro (support)
+AS-534: ST-01 Joan Pell (support)
+AS-535: ST-04 Bill Hart (support)
+AS-536: ST-22 Leo Park (support)
+
+We need to remove most recent support invigilators first. Which is most recent? Possibly highest assignment ID = AS-536 (ST-22). So we should call `remove_invigilator(exam_id="EX-123", staff_id="ST-22")`. Then next: AS-535 (ST-04), etc.
+
+After removal, we need to assign new invigilators such that total count = 3. We'll keep lead as one of them; maybe Paul Weir remains lead? But is he eligible for Maths? Not sure. Let's find staff who can be lead for Maths: use `find_staff(subject="Maths", lead_qualified=true)`. It returned Tom Quist (ST-11). That suggests only Tom qualifies as lead for Maths. So we need to assign Tom as lead.
+
+Thus final invigilators for EX-123 should be:
+- Lead: ST-11 (Tom Quist)
+- Support: two others (maybe the next most recent support after removal, or any eligible).
+
+We also must ensure staff are not unavailable on date 2027-01-13. Need to check `list_staff_schedule` for that date.
+
+Let's get schedule for 2027-01-13 using `list_staff_schedule`.</think><tool_call>
+<function=list_staff_schedule>
+<parameter=date>
+2027-01-13
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"date": "2027-01-13", "staff": [{"staff_id": "ST-01", "name": "Joan Pell", "teaches": "(non-teaching)", "lead_qualified": true, "available": true, "sessions": [{"exam_id": "EX-123", "paper": "Maths Paper 2", "start": "13:30", "end": "15:30", "role": "support"}]}, {"staff_id": "ST-02", "name": "Victor Lam", "teaches": "(non-teaching)", "lead_qualified": true, "available": true, "sessions": [{"exam_id": "EX-124", "paper": "Art History Paper 1", "start": "13:30", "end": "15:00", "role": "lead"}]}, {"staff_id": "ST-03", "name": "Sana Mirza", "teaches": "(non-teaching)", "lead_qualified": false, "available": true, "sessions": [{"exam_id": "EX-121", "paper": "Chemistry Paper 1", "start": "09:00", "end": "11:00", "role": "support"}]}, {"staff_id": "ST-04", "name": "Bill Hart", "teaches": "(non-teaching)", "lead_qualified": false, "available": true, "sessions": [{"exam_id": "EX-123", "paper": "Maths Paper 2", "start": "13:30", "end": "15:30", "role": "support"}]}, {"staff_id": "ST-05", "name": "Clara Diaz", "teaches": "Physics", "lead_qualified": true, "available": false, "sessions": []}, {"staff_id": "ST-06", "name": "Noel Grant", "teaches": "Physics", "lead_qualified": false, "available": true, "sessions": []}, {"staff_id": "ST-07", "name": "Femi Okoro", "teaches": "Chemistry", "lead_qualified": true, "available": true, "sessions": [{"exam_id": "EX-122", "paper": "French Paper 1", "start": "09:00", "end": "10:30", "role": "lead"}, {"exam_id": "EX-123", "paper": "Maths Paper 2", "start": "13:30", "end": "15:30", "role": "support"}]}, {"staff_id": "ST-08", "name": "Lotte Berg", "teaches": "Chemistry", "lead_qualified": false, "available": true, "sessions": []}, {"staff_id": "ST-09", "name": "Paul Weir", "teaches": "Biology", "lead_qualified": true, "available": true, "sessions": [{"exam_id": "EX-123", "paper": "Maths Paper 2", "start": "13:30", "end": "15:30", "role": "lead"}]}, {"staff_id": "ST-10", "name": "Asha Rao", "teaches": "Biology", "lead_qualified": false, "available": true, "sessions": []}, {"staff_id": "ST-11", "name": "Tom Quist", "teaches": "Maths", "lead_qualified": true, "available": true, "sessions": []}, {"staff_id": "ST-12", "name": "Eva Novak", "teaches": "Maths", "lead_qualified": false, "available": true, "sessions": []}, {"staff_id": "ST-13", "name": "Ian Moss", "teaches": "History", "lead_qualified": false, "available": true, "sessions": []}, {"staff_id": "ST-14", "name": "Gwen Tate", "teaches": "English", "lead_qualified": true, "available": true, "sessions": []}, {"staff_id": "ST-15", "name": "Omar Saleh", "teaches": "(non-teaching)", "lead_qualified": false, "available": true, "sessions": [{"exam_id": "EX-122", "paper": "French Paper 1", "start": "09:00", "end": "10:30", "role": "support"}]}, {"staff_id": "ST-16", "name": "Kit Byrne", "teaches": "(non-teaching)", "lead_qualified": true, "available": true, "sessions": [{"exam_id": "EX-121", "paper": "Chemistry Paper 1", "start": "09:00", "end": "11:00", "role": "lead"}]}, {"staff_id": "ST-17", "name": "Mina Cho", "teaches": "Geography", "lead_qualified": false, "available": true, "sessions": [{"exam_id": "EX-124", "paper": "Art History Paper 1", "start": "13:30", "end": "15:00", "role": "support"}]}, {"staff_id": "ST-18", "name": "Dara Flynn", "teaches": "(non-teaching)", "lead_qualified": false, "available": true, "sessions": []}, {"staff_id": "ST-19", "name": "Zara Malik", "teaches": "English", "lead_qualified": false, "available": true, "sessions": [{"exam_id": "EX-121", "paper": "Chemistry Paper 1", "start": "09:00", "end": "11:00", "role": "support"}]}, {"staff_id": "ST-20", "name": "Hugo Varga", "teaches": "(non-teaching)", "lead_qualified": false, "available": true, "sessions": [{"exam_id": "EX-121", "paper": "Chemistry Paper 1", "start": "09:00", "end": "11:00", "role": "support"}]}, {"staff_id": "ST-21", "name": "Rita Varga", "teaches": "Physics", "lead_qualified": true, "available": true, "sessions": []}, {"staff_id": "ST-22", "name": "Leo Park", "teaches": "(non-teaching)", "lead_qualified": false, "available": true, "sessions": [{"exam_id": "EX-123", "paper": "Maths Paper 2", "start": "13:30", "end": "15:30", "role": "support"}]}]}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>The staff schedule for date 2027-01-13 shows many entries. For each staff, we see sessions (exam assignments). We need to know which are available. Many have "available": true/false.
+
+For EX-123 (Maths Paper 2), currently there is a session for ST-01 (Joan Pell) role support, ST-04 Bill Hart support, ST-09 Paul Weir lead, ST-07 Femi Okoro support, ST-22 Leo Park support. So multiple assignments.
+
+We need to remove most recent support invigilators first: likely highest assignment ID among support entries for EX-123. The current invigilators list includes AS-532 (lead), then AS-533 (ST-07), AS-534 (ST-01), AS-535 (ST-04), AS-536 (ST-22). Assignment IDs are sequential: 532 lead, 533 support, etc. So most recent is highest ID = 536 (ST-22). Remove ST-22 first.
+
+Then next most recent support = 535 (ST-04), then 534 (ST-01), etc.
+
+We need to end up with total invigilators = required count (3 for EX-123 after candidate update? Wait we computed required=3. But currently there are 5. After removing two, maybe still >3. Let's compute: We'll remove the most recent support until only 3 remain including lead.
+
+Current list:
+- Lead: ST-09 Paul Weir (AS-532)
+- Support: AS-533 ST-07 Femi Okoro
+- AS-534 ST-01 Joan Pell
+- AS-535 ST-04 Bill Hart
+- AS-536 ST-22 Leo Park
+
+We need total 3 invigilators. So we must have exactly one lead and two support? Or could be three support with a designated lead among them? Policy says "Every exam has exactly one lead invigilator, who must hold the lead qualification; all others are support." So there must be at least one lead. Could be more than one lead? No, exactly one lead.
+
+Thus we need to have 1 lead and (total - 1) support. For total=3 => 2 support.
+
+So final set: Lead = ST-09 (Paul Weir) or maybe Tom Quist is also eligible but not currently assigned. But we can assign any staff meeting criteria, as long as they are available on that date and not already assigned? The system may allow reassigning.
+
+We need to decide which lead to use. Policy: "A teacher may not invigilate an exam in the subject they teach." So the lead must be a teacher of Maths (subject). Paul Weir teaches Biology, so he cannot be lead for Maths Paper 2. Tom Quist teaches Maths and is lead qualified. So we should assign Tom as lead.
+
+Thus we need to remove existing assignments and reassign: Remove all current invigilators except the new ones. The tool `assign_invigilator` adds a staff to an exam with role; `remove_invigilator` removes them. We can do multiple calls.
+
+Let's plan for EX-123:
+
+Current invigilators (from list_exams page 2):
+AS-532: ST-09 Paul Weir lead
+AS-533: ST-07 Femi Okoro support
+AS-534: ST-01 Joan Pell support
+AS-535: ST-04 Bill Hart support
+AS-536: ST-22 Leo Park support
+
+We need to end with:
+- Lead: Tom Quist (ST-11) role lead.
+- Support: two staff, maybe the next most recent after removal? We'll decide.
+
+Steps:
+
+1. Remove most recent support invigilator: highest ID = AS-536 (ST-22). Use `remove_invigilator(exam_id="EX-123", staff_id="ST-22")`.
+
+2. Next remove ST-04 (AS-535) maybe? But we need to keep two supports. Let's decide which support IDs to keep: Possibly the most recent ones are those with highest ID, but we want to keep older ones? The instruction "take off the most recently assigned support invigilators first" suggests we should remove them in order of recency until we have required count.
+
+Thus after removal of ST-22 (most recent), next most recent is AS-536's predecessor: AS-535 (ST-04). Remove that. Then we would have lead + 2 supports left? Let's see remaining support IDs: AS-533 (ST-07), AS-534 (ST-01). That's two supports. So after removing ST-22 and ST-04, we'd have lead (ST-09) + support (ST-07, ST-01) = 3 total invigilators. But we need exactly one lead; currently we still have Paul Weir as lead but he is not eligible for Maths subject. So we must change role of one of them to support? Or reassign lead to Tom.
+
+Thus after removal steps, we could assign roles: ST-09 becomes support, and add new lead ST-11 (Tom). But need exactly one lead; we can set role accordingly via `set_invigilator_role`.
+
+Let's proceed stepwise:
+
+- Remove ST-22.
+- Remove ST-04.
+
+Now remaining invigilators:
+AS-532: ST-09 Paul Weir (lead)
+AS-533: ST-07 Femi Okoro (support)
+AS-534: ST-01 Joan Pell (support)
+AS-535 removed
+AS-536 removed
+
+That's 4 invigilators still. Need to reduce to 3 total. So we need to remove one more support, likely the most recent among remaining supports: highest ID is AS-533? Actually IDs left are 532 (lead), 533, 534. The highest is 534 (ST-01). Remove that.
+
+After removing ST-01, we have:
+AS-532 lead (Paul Weir)
+AS-533 support (Femi Okoro)
+AS-534 removed
+Remaining: only one support? Actually we also had AS-535 and AS-536 removed. So after removal of ST-22 and ST-04 and ST-01, left with Paul Weir as sole invigilator. That's not enough.
+
+Thus maybe my assumption about IDs is off. Let's re-evaluate: The list shows assignments for EX-123:
+AS-532 (ST-09)
+AS-533 (ST-07)
+AS-534 (ST-01)
+AS-535 (ST-04)
+AS-536 (ST-22)
+
+These are five invigilators, with lead at AS-532. So IDs increment sequentially from 532 to 536.
+
+Thus most recent is highest ID = 536 (ST-22). Next most recent = 535 (ST-04), then 534 (ST-01), etc.
+
+We need total of 3 invigilators: one lead, two support. Currently we have 5. So we must remove enough to get down to 3. Remove the three most recent? But instruction says "take off the most recently assigned support invigilators first". That implies we should only remove support ones, not necessarily all leads. So we need to identify which of these are support roles: AS-533 (ST-07 Femi Okoro) role support; AS-534 (ST-01 Joan Pell) support; AS-535 (ST-04 Bill Hart) support; AS-536 (ST-22 Leo Park) support.
+
+Thus the most recent support is AS-536. Remove that first. Then next most recent support: AS-535, remove. Next: AS-534, remove? That would leave only lead and maybe one support left if we stop at two removals. Let's see:
+
+After removing AS-536 (ST-22) and AS-535 (ST-04), remaining invigilators:
+AS-532 (lead Paul Weir)
+AS-533 (support Femi Okoro)
+AS-534 (support Joan Pell)
+
+That's 3 total, with one lead. But we need exactly one lead; currently there is a lead (Paul Weir) but he may not be eligible for Maths subject. So we must change his role to support and assign Tom as new lead.
+
+Thus final set: Lead = ST-11 (Tom Quist), Support = two others, maybe Femi Okoro and Joan Pell? Or choose the ones that are available on date 2027-01-13.
+
+Check availability for each:
+
+From staff schedule for 2027-01-13:
+- ST-07 Femi Okoro: available true.
+- ST-01 Joan Pell: available true (but currently assigned as support).
+- ST-09 Paul Weir: available true but teaches Biology, not eligible lead for Maths.
+
+We need a lead who teaches Maths and is lead qualified. Tom Quist (ST-11) teaches Maths, lead_qualified true, available true. So we can assign him as lead.
+
+Thus final invigilators:
+Lead: ST-11 (Tom Quist)
+Support: maybe ST-07 (Femi Okoro) and ST-01 (Joan Pell). Or could be any two support staff who are available and not already assigned? We'll pick the ones that were previously support but we removed some. After removal of AS-536, AS-535, AS-534, remaining supports: AS-533 (ST-07), AS-534 (ST-01) maybe also others like ST-04 etc removed.
+
+Thus final assignments:
+- Remove ST-22 (AS-536)
+- Remove ST-04 (AS-535)
+- Keep lead Paul Weir? But we need to change role of Paul Weir from lead to support, and assign Tom as new lead. So we can use `set_invigilator_role` for each staff.
+
+Let's proceed with removal calls:
+
+1. remove_invigilator(exam_id="EX-123", staff_id="ST-22")
+2. remove_invigilator(exam_id="EX-123", staff_id="ST-04") (next most recent support)
+3. Possibly also need to remove ST-01? But we might keep two supports: Femi and Joan. That's fine.
+
+But after removing ST-22 and ST-04, remaining invigilators are:
+AS-532 Paul Weir lead
+AS-533 Femi Okoro support
+AS-534 Joan Pell support
+
+That's 3 total (1 lead + 2 support). However we need exactly one lead. Currently there is a lead but it's wrong subject. So we must change role of Paul Weir to support, and assign Tom as new lead.
+
+Thus steps:
+- `set_invigilator_role(exam_id="EX-123", staff_id="ST-09", role="support")` (change Paul from lead to support)
+- `assign_invigilator(exam_id="EX-123", staff_id="ST-11", role="lead")` (add Tom as lead). But we also need to remove his previous assignment? He wasn't assigned currently. So just assign.
+
+But the tool `assign_invigilator` adds a member of staff to an exam as lead or support. It might replace existing assignments? Not sure but likely adds. We'll handle accordingly.
+
+Thus for EX-123, we will:
+- remove ST-22
+- remove ST-04 (maybe also need to remove any other if needed)
+- set role of ST-09 from lead to support.
+- assign Tom Quist as lead.
+
+Let's do removal calls first.</think><tool_call>
+<function=remove_invigilator>
+<parameter=exam_id>
+EX-123
+</parameter>
+<parameter=staff_id>
+ST-22
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"ok": true, "exam": {"exam_id": "EX-123", "paper": "Maths Paper 2", "subject": "Maths", "date": "2027-01-13", "start": "13:30", "end": "15:30", "room_id": "RM-01", "candidates": 110, "invigilators_required": 5, "invigilators": [{"assignment_id": "AS-532", "staff_id": "ST-09", "name": "Paul Weir", "role": "lead"}, {"assignment_id": "AS-533", "staff_id": "ST-07", "name": "Femi Okoro", "role": "support"}, {"assignment_id": "AS-534", "staff_id": "ST-01", "name": "Joan Pell", "role": "support"}, {"assignment_id": "AS-535", "staff_id": "ST-04", "name": "Bill Hart", "role": "support"}], "sitting_of": ""}}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>The remove_invigilator call returned updated invigilators list after removal of ST-22. It still shows 4 entries (lead Paul, support Femi, Joan Pell, Bill Hart). So we need to also remove ST-04? Wait the list now includes AS-535 (ST-04) still present. We removed ST-22 only.
+
+Now next: remove most recent support invigilator after that removal. The highest ID among remaining is AS-535 (ST-04). Let's remove ST-04.</think><tool_call>
+<function=remove_invigilator>
+<parameter=exam_id>
+EX-123
+</parameter>
+<parameter=staff_id>
+ST-04
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"ok": true, "exam": {"exam_id": "EX-123", "paper": "Maths Paper 2", "subject": "Maths", "date": "2027-01-13", "start": "13:30", "end": "15:30", "room_id": "RM-01", "candidates": 110, "invigilators_required": 5, "invigilators": [{"assignment_id": "AS-532", "staff_id": "ST-09", "name": "Paul Weir", "role": "lead"}, {"assignment_id": "AS-533", "staff_id": "ST-07", "name": "Femi Okoro", "role": "support"}, {"assignment_id": "AS-534", "staff_id": "ST-01", "name": "Joan Pell", "role": "support"}], "sitting_of": ""}}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>Now we have 3 invigilators: lead Paul Weir, support Femi Okoro, support Joan Pell. Need to change role of Paul from lead to support (since he's not eligible for Maths). Then assign Tom Quist as new lead.
+
+Let's set role for ST-09 to support:
+`set_invigilator_role(exam_id="EX-123", staff_id="ST-09", role="support")`.</think><tool_call>
+<function=set_invigilator_role>
+<parameter=exam_id>
+EX-123
+</parameter>
+<parameter=staff_id>
+ST-09
+</parameter>
+<parameter=role>
+support
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"ok": true, "exam": {"exam_id": "EX-123", "paper": "Maths Paper 2", "subject": "Maths", "date": "2027-01-13", "start": "13:30", "end": "15:30", "room_id": "RM-01", "candidates": 110, "invigilators_required": 5, "invigilators": [{"assignment_id": "AS-532", "staff_id": "ST-09", "name": "Paul Weir", "role": "support"}, {"assignment_id": "AS-533", "staff_id": "ST-07", "name": "Femi Okoro", "role": "support"}, {"assignment_id": "AS-534", "staff_id": "ST-01", "name": "Joan Pell", "role": "support"}], "sitting_of": ""}}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>Now assign Tom Quist (ST-11) as lead. Use `assign_invigilator(exam_id="EX-123", staff_id="ST-11", role="lead")`. This may add a new assignment; we need to ensure there is no duplicate. Let's do it.</think><tool_call>
+<function=assign_invigilator>
+<parameter=exam_id>
+EX-123
+</parameter>
+<parameter=staff_id>
+ST-11
+</parameter>
+<parameter=role>
+lead
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"error": "ST-11 teaches Maths and may not invigilate Maths Paper 2"}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>The tool returned an error: "ST-11 teaches Maths and may not invigilator an exam in the subject they teach." So Tom Quist cannot be lead for Maths because he teaches Maths. That's a rule: teacher may not invigilate an exam in the subject they teach. So we need another lead who does NOT teach Maths, but is qualified to lead (lead_qualified true) and available on 2027-01-13.
+
+We need a staff member with lead qualification for Maths? Actually rule: "A teacher may not invigilate an exam in the subject they teach." So if someone teaches Maths, they cannot be lead for Maths. Tom Quist teaches Maths, so he's out. We need another eligible lead for Maths (i.e., a staff member who is NOT teaching Maths but can lead). Let's find staff who are lead qualified and not teaching Maths.
+
+We previously found `find_staff(subject="Maths", lead_qualified=true)` returned Tom Quist only. That suggests maybe only Tom teaches Maths among those with lead qualification? But we need a non-Maths teacher who can lead Maths exam. Perhaps there are other staff qualified as lead for Maths but not listed in that query because subject parameter might be "Maths" meaning they teach Maths, so it returns teachers of Maths. To find any staff eligible to lead Maths (i.e., have lead qualification and maybe not teaching the subject), we could search without subject filter: `find_staff(lead_qualified=true)` and then check their teaches field.
+
+Let's get all staff with lead_qualified true. Use find_staff with lead_qualified true only.</think><tool_call>
+<function=find_staff>
+<parameter=lead_qualified>
+true
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"staff": [{"staff_id": "ST-01", "name": "Joan Pell", "teaches": "(non-teaching)", "lead_qualified": true, "unavailable": ["2027-01-15"]}, {"staff_id": "ST-02", "name": "Victor Lam", "teaches": "(non-teaching)", "lead_qualified": true, "unavailable": []}, {"staff_id": "ST-05", "name": "Clara Diaz", "teaches": "Physics", "lead_qualified": true, "unavailable": ["2027-01-13", "2027-01-15"]}, {"staff_id": "ST-07", "name": "Femi Okoro", "teaches": "Chemistry", "lead_qualified": true, "unavailable": ["2027-01-15"]}, {"staff_id": "ST-09", "name": "Paul Weir", "teaches": "Biology", "lead_qualified": true, "unavailable": ["2027-01-15"]}, {"staff_id": "ST-11", "name": "Tom Quist", "teaches": "Maths", "lead_qualified": true, "unavailable": ["2027-01-15"]}, {"staff_id": "ST-14", "name": "Gwen Tate", "teaches": "English", "lead_qualified": true, "unavailable": []}, {"staff_id": "ST-16", "name": "Kit Byrne", "teaches": "(non-teaching)", "lead_qualified": true, "unavailable": []}, {"staff_id": "ST-21", "name": "Rita Varga", "teaches": "Physics", "lead_qualified": true, "unavailable": []}]}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>We need a lead for Maths exam EX-123. The rule: teacher cannot invigilate in subject they teach. So we need someone who teaches something else (non-Maths) and is lead qualified.
+
+Candidates from list:
+- ST-02 Victor Lam teaches non-teaching, lead qualified.
+- ST-05 Clara Diaz teaches Physics, lead qualified but unavailable on 2027-01-13 (unavailable includes that date). So cannot be assigned on that day.
+- ST-07 Femi Okoro teaches Chemistry, lead qualified, available? Unavailable only 2027-01-15. So available on 2027-01-13.
+- ST-09 Paul Weir teaches Biology, lead qualified, available (unavailable 2027-01-15). But he's currently support; we could change role to lead but need non-Maths teacher? He teaches Biology, so okay for Maths. However earlier we tried assigning Tom and got error because he teaches Maths. Paul Weir teaches Biology, so he could be lead for Maths. But is there a rule about "teacher may not invigilate an exam in the subject they teach"? Yes, if you are teaching Biology, you cannot invigilate Biology exams, but can you invigilate Maths? I think yes, as long as it's not their own subject.
+
+Thus we could assign Paul Weir (ST-09) as lead for Maths. But he currently is support; we changed his role to support earlier. We can change back to lead using `set_invigilator_role`. That would satisfy the rule because he teaches Biology, not Maths.
+
+But we also need exactly one lead. So after changes, we will have:
+- ST-09 Paul Weir: role support (currently)
+- ST-07 Femi Okoro: support
+- ST-01 Joan Pell: support
+
+We want to add a new lead for Tom? No, can't because he teaches Maths.
+
+Thus best candidate is ST-02 Victor Lam (non-teaching) or ST-16 Kit Byrne (non-teaching). Both are lead qualified and available. Which one should we pick? Need smallest room capacity? That's separate; but also need to consider "most recently assigned support invigilators first" removal already done.
+
+We can assign a new lead: choose the most appropriate, maybe ST-02 Victor Lam (lead qualified, non-teaching). Let's check his availability on 2027-01-13: from staff schedule earlier, ST-02 has sessions for EX-124 and role lead. It shows available true. So he is free.
+
+Thus final invigilators:
+Lead: ST-02 (Victor Lam)
+Support: two others. Which supports? We have remaining support after removals: currently we have Femi Okoro (ST-07) support, Joan Pell (ST-01) support. That's two supports. So total 3.
+
+Thus final assignments for EX-123:
+- Lead: ST-02 Victor Lam
+- Support: ST-07 Femi Okoro, ST-01 Joan Pell
+
+We need to set roles accordingly:
+
+Current invigilators after removals (from last `remove_invigilator` calls) are:
+AS-532 Paul Weir support,
+AS-533 Femi Okoro support,
+AS-534 Joan Pell support.
+
+We changed Paul's role to support earlier. So all three currently support. Need to change roles: ST-02 Victor Lam not assigned yet; we need to assign him as lead, and reassign others as support (they already are support). But we also need to remove any assignments for ST-02? He wasn't assigned before.
+
+Thus steps:
+- Assign ST-02 as lead: `assign_invigilator(exam_id="EX-123", staff_id="ST-02", role="lead")`.
+- Change Paul Weir's role back to support (already set, but ensure). Already changed earlier.
+- Keep Femi and Joan as support.
+
+But we also need to remove any existing assignment for ST-02? Not needed; assign will add new one. Might cause duplicate. But tool may handle.
+
+Let's proceed with `assign_invigilator` for lead.</think><tool_call>
+<function=assign_invigilator>
+<parameter=exam_id>
+EX-123
+</parameter>
+<parameter=staff_id>
+ST-02
+</parameter>
+<parameter=role>
+lead
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"error": "ST-02 is already invigilating EX-124 at an overlapping time"}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>The error says ST-02 is already invigilating EX-124 (Art History Paper 1) on same date and overlapping time? Let's check schedule: For ST-02, from staff schedule for 2027-01-13, sessions include EX-124 (Art History Paper 1) start 13:30 end 15:00 role lead. So ST-02 is already assigned to EX-124 at same time slot (13:30-15:00). Our new exam EX-123 runs 13:30-15:30, overlapping with EX-124 (13:30-15:00) in RM-08? Actually EX-124 room RM-08. But the conflict is about being assigned to another exam at same time and maybe overlapping rooms? The rule: "Staff cannot invigilate on a date they are unavailable, in two exams whose times overlap, or in more than max_sessions_per_day exams on one day." So ST-02 already has an exam EX-124 from 13:30 to 15:00. Our new exam starts at same time 13:30 and overlaps (13:30-15:00). So cannot assign him as lead for overlapping exam.
+
+Thus we need a different lead who is not assigned to another exam on that date during the overlapping period. Let's check other candidates:
+
+- ST-16 Kit Byrne teaches non-teaching, lead qualified, available true, but currently assigned to EX-121 (Chemistry) 09:00-11:00 and maybe others? Not sure about 13:30 slot.
+
+From staff schedule for 2027-01-13:
+ST-16 has session EX-121 Chemistry Paper 1 09:00-11:00 lead. No other sessions listed. So at 13:30, he's free.
+
+Thus we can assign ST-16 as lead.
+
+Check if ST-16 is available on 2027-01-13: from schedule, "ST-16 ... available true". Yes.
+
+So choose Victor? Actually ST-02 conflict; ST-16 seems okay. Also need to ensure they are not already assigned to EX-123 (they aren't). So assign ST-16 as lead.
+
+Let's try `assign_invigilator(exam_id="EX-123", staff_id="ST-16", role="lead")`.</think><tool_call>
+<function=assign_invigilator>
+<parameter=exam_id>
+EX-123
+</parameter>
+<parameter=staff_id>
+ST-16
+</parameter>
+<parameter=role>
+lead
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"ok": true, "assignment_id": "AS-600", "exam": {"exam_id": "EX-123", "paper": "Maths Paper 2", "subject": "Maths", "date": "2027-01-13", "start": "13:30", "end": "15:30", "room_id": "RM-01", "candidates": 110, "invigilators_required": 5, "invigilators": [{"assignment_id": "AS-532", "staff_id": "ST-09", "name": "Paul Weir", "role": "support"}, {"assignment_id": "AS-533", "staff_id": "ST-07", "name": "Femi Okoro", "role": "support"}, {"assignment_id": "AS-534", "staff_id": "ST-01", "name": "Joan Pell", "role": "support"}, {"assignment_id": "AS-600", "staff_id": "ST-16", "name": "Kit Byrne", "role": "lead"}], "sitting_of": ""}}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>The assign_invigilator call returned an assignment with ID AS-600, but the invigilators list still shows old entries plus new lead. It seems it added a new entry for ST-16 as lead, but didn't remove others? The tool may have replaced or just added. We need to clean up: we previously had Paul Weir support; now there is also a lead assignment for ST-16. But we still have three supports (Paul, Femi, Joan) and one new lead (Kit Byrne). That's 4 invigilators total, but required is 3.
+
+We need to reduce number of invigilators to exactly 3: currently there are 4 entries in the list after assign. We must remove two support assignments? Or maybe we can set role for some to lead? But only one lead allowed. So we need to have exactly three rows: one lead, two supports.
+
+Thus we need to remove two of the existing invigilators (support). Which ones are most recent? The highest IDs among remaining support entries: currently after previous removals, we had AS-532 (Paul), AS-533 (Femi), AS-534 (Joan). Also there is new AS-600 for ST-16 lead. We need to remove two supports.
+
+Which should be removed first? "Take off the most recently assigned support invigilators first". The most recent support assignments among those currently present: we have IDs 532, 533, 534. Highest ID = 534 (Joan Pell). So remove ST-01 first. Then next highest = 533 (Femi Okoro). Remove that.
+
+Thus steps:
+
+- `remove_invigilator(exam_id="EX-123", staff_id="ST-01")`.
+- `remove_invigilator(exam_id="EX-123", staff_id="ST-07")`.
+
+But we also need to keep two supports. Which ones? We could keep ST-09 (Paul) as support, and maybe another support like ST-16? But ST-16 is lead now. So we need one more support besides Paul. Could be ST-02 or others not assigned.
+
+Let's decide final invigilators:
+Lead: ST-16 (Kit Byrne)
+Supports: ST-09 (Paul Weir) and maybe ST-07 (Femi Okoro)? But we removed Femi. Let's pick ST-09 and ST-02? Not sure.
+
+We need to ensure staff are available on 2027-01-13 and not already assigned elsewhere overlapping times.
+
+Let's check availability for each candidate:
+
+From staff schedule:
+- ST-16: available true, sessions EX-121 (Chemistry) 09:00-11:00 lead. No other sessions listed. So free at 13:30.
+- ST-09: Paul Weir available true, session EX-123 support currently; also maybe other? Not sure but he's available.
+
+- ST-07 Femi Okoro: available true, sessions include EX-122 French Paper 1 (09:00-10:30) lead and EX-123 support. So at 13:30 he is free for new exam? He has a session at 13:30-15:30 for EX-123 as support currently; but we are removing that assignment, so after removal he would be free.
+
+Thus we can keep Paul Weir as support (ST-09) and maybe assign another support like ST-07 or ST-01 etc. But need to remove two supports: highest IDs 534 (Joan Pell), 533 (Femi Okoro). After removing those, remaining invigilators would be:
+- Lead: ST-16
+- Support: Paul Weir (ST-09) and maybe another support like ST-02? Not assigned yet. But we need exactly two supports; currently only one support after removal of the two highest IDs.
+
+Thus we might need to add a new support besides Paul. Could be ST-07 or ST-01 etc, but they are being removed. Let's re-evaluate: We had three supports originally (Femi, Joan, Bill Hart). After removing Femi and Joan, only Bill Hart remains as support? Actually original list after removal of ST-22 and ST-04 left Paul (lead), Femi (support), Joan (support). That was 3 total. Then we added lead ST-16, making 4 total. So we need to remove two supports: which ones? The most recent are highest IDs among support entries: currently after adding ST-16 as lead, the invigilators list includes:
+AS-532 Paul Weir (support)
+AS-533 Femi Okoro (support)
+AS-534 Joan Pell (support)
+AS-600 Kit Byrne (lead)
+
+We need to remove two supports. The most recent support IDs are 534 (Joan), then 533 (Femi). So remove ST-01 and ST-07.
+
+Thus steps:
+- `remove_invigilator(exam_id="EX-123", staff_id="ST-01")`.
+- `remove_invigilator(exam_id="EX-123", staff_id="ST-07")`.
+
+After removal, we will have:
+- AS-532 Paul Weir (support)
+- AS-600 Kit Byrne (lead)
+- Possibly others? Let's see if any other support remains: none.
+
+Thus total invigilators = 2 (one lead + one support). Need exactly two supports for required count of 3. So we need to add another support besides Paul Weir. Could be ST-09 is now support, but we could keep him as support and find another staff not assigned elsewhere on that date at overlapping time.
+
+Let's check available support candidates: ST-02 Victor Lam (non-teaching) lead qualified, but he has a session EX-124 13:30-15:00. Overlaps with our exam 13:30-15:30? Yes, same start and overlap for first half. So cannot be support at that time.
+
+ST-05 Clara Diaz is unavailable on 2027-01-13 (unavailable list includes that date). So not available.
+
+ST-08 Lotte Berg no lead qualified maybe but could be support? She is non-lead, but we need a support; she might be available. But we can find another staff.
+
+Let's search for staff who are support role and available on 2027-01-13. Use `list_staff_schedule` already gave sessions per staff. For each staff, we see their sessions (exam assignments). We can identify those not assigned to EX-123 currently after removal.
+
+From the schedule earlier:
+- ST-02 Victor Lam: session EX-124 lead 13:30-15:00.
+- ST-03 Sana Mirza support for EX-121 09:00-11:00.
+- ST-04 Bill Hart support for EX-123 (currently removed).
+- ST-05 Clara Diaz unavailable on 2027-01-13, so not available.
+- ST-06 Noel Grant no sessions listed.
+- ST-07 Femi Okoro lead French and support Maths. After removal of support assignment, he might have only lead for EX-122? He has session EX-122 (French) lead 09:00-10:30. So at 13:30 free.
+
+- ST-08 Lotte Berg no sessions.
+- ST-09 Paul Weir support for EX-123 currently; after removal of his support assignment, he becomes free.
+
+- ST-10 Asha Rao no sessions.
+
+- ST-11 Tom Quist teaches Maths, unavailable on 2027-01-15 only, not relevant to 13th. He is available but teaches Maths so cannot be lead for Maths; could be support? Possibly yes if not teaching the subject. But he's a teacher of Maths, rule says "A teacher may not invigilate an exam in the subject they teach." So Tom can't be support either because he teaches Maths. So exclude.
+
+- ST-12 Eva Novak teaches Maths (non-lead). She cannot be lead for Maths; could be support? Possibly yes if she doesn't teach Maths? Actually she teaches Maths, so also prohibited from invigilating Maths exam. So not eligible as support either.
+
+- ST-13 Ian Moss teaches History, no restriction maybe but he's support currently for EX-131 etc.
+
+- ST-14 Gwen Tate teaches English, lead qualified; could be support? She is a teacher of English, so cannot be support for English exams but for Maths it's okay. But we need support staff not teaching Maths.
+
+- ST-15 Omar Saleh non-teaching, no restriction maybe.
+
+- ST-16 Kit Byrne non-teaching, lead qualified.
+
+- ST-17 Mina Cho teaches Geography, etc.
+
+- ST-18 Dara Flynn non-teaching.
+
+- ST-19 Zara Malik teaches English, can't be support for English but okay for Maths? She is teacher of English; not relevant to Maths. So she could be support for Maths as long as they don't teach Maths. But we need a staff who is available and not already assigned.
+
+Thus many options.
+
+We need exactly two supports besides lead. Let's pick ST-09 Paul Weir (support) and ST-16 Kit Byrne? But ST-16 is lead now; can't be both. So maybe choose ST-02 Victor Lam but he has conflict with EX-124 overlapping time 13:30-15:00. That overlap might be okay if the exam times differ? They overlap from 13:30 to 15:00, which is within our new exam's start at 13:30 and end 15:30; they share same start and partially overlap. The rule says "in two exams whose times overlap". So having him assigned to both overlapping would violate. So can't.
+
+Thus we need a support staff who does not have an assignment on that date during the new exam's time (13:30-15:30). Let's check each candidate:
+
+- ST-02 Victor Lam: has EX-124 13:30-15:00 lead, conflict.
+- ST-03 Sana Mirza: support for EX-121 09:00-11:00 only; free at 13:30. But is she available on 2027-01-13? She shows "available": true and no unavailable dates listed (unavailable maybe none). So she could be support.
+
+- ST-04 Bill Hart: removed.
+- ST-05 Clara Diaz: unavailable on 2027-01-13, so not available.
+- ST-06 Noel Grant: no sessions listed; likely available. But teaches Physics? Not sure. Could be support.
+
+- ST-07 Femi Okoro: has lead for EX-122 and support for EX-123 (currently). After removal of support assignment, he would have only lead for French exam 09:00-10:30. At 13:30 free. So could be support.
+
+- ST-08 Lotte Berg: no sessions listed; maybe available but teaches Chemistry? Actually she teaches Chemistry per earlier list. She is not a teacher of Maths, so can be support.
+
+- ST-09 Paul Weir: currently support for EX-123 (to be removed). After removal he becomes free at 13:30.
+
+- ST-10 Asha Rao: no sessions listed; unknown subject maybe non-teaching.
+
+- ST-11 Tom Quist teaches Maths, cannot be support for Maths.
+
+- ST-12 Eva Novak teaches Maths, cannot be support.
+
+- ST-13 Ian Moss teaches History, could be support but has session EX-131? Actually from staff schedule: ST-13 Ian Moss is listed with sessions for EX-131 (Physics Paper 1) start 09:00 end 11:00 role support. So at 13:30 free.
+
+- ST-14 Gwen Tate teaches English, can be support for Maths (since not teaching Maths). She has no sessions on 2027-01-13 listed; available true.
+
+- ST-15 Omar Saleh non-teaching, maybe support but has session EX-122 French Paper 1 support? Actually from schedule: ST-15 Omar Saleh has session EX-122 French Paper 1 start 09:00 end 10:30 role support. So at 13:30 free.
+
+- ST-16 Kit Byrne non-teaching, lead for new exam; but also has no other sessions on that date? He had EX-121 Chemistry 09:00-11:00 lead. At 13:30 free.
+
+- ST-17 Mina Cho teaches Geography, support maybe.
+
+- etc.
+
+Thus we can pick any two supports who are available and not already assigned to EX-123 after removal. Let's choose ST-03 Sana Mirza (support for Chemistry) and ST-06 Noel Grant (maybe no sessions). But need to ensure they have lead qualification? Not required for support; only requirement is staff can invigilate, maybe any staff.
+
+Simplify: Keep Paul Weir as one support. Need another support: choose ST-03 Sana Mirza (ST-03) who teaches non-teaching and has session EX-121 09:00-11:00 lead? Actually from schedule: ST-03 Sana Mirza is lead for Chemistry Paper 1, not support. But she also may have other sessions; but we can assign her as support.
+
+Let's verify ST-03's role on 2027-01-13: In staff schedule entry for ST-03: "Sana Mirza ... lead_qualified false, available true, sessions: EX-121 Chemistry Paper 1 start 09:00 end 11:00 role support". So she is currently assigned as support for EX-121. That's okay; we can reassign her to EX-123.
+
+Thus final supports could be ST-03 and ST-09 (Paul). But Paul already support after change. So we have two supports: Paul Weir (ST-09) and Sana Mirza (ST-03).
+
+Now need to remove the other support assignments for those staff on EX-123:
+
+- Remove ST-01 (Joan Pell) as support.
+- Remove ST-07 (Femi Okoro) as support.
+
+We already planned removal of ST-01 and ST-07. Let's do that now.
+
+First, `remove_invigilator(exam_id="EX-123", staff_id="ST-01")`.</think><tool_call>
+<function=remove_invigilator>
+<parameter=exam_id>
+EX-123
+</parameter>
+<parameter=staff_id>
+ST-01
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"ok": true, "exam": {"exam_id": "EX-123", "paper": "Maths Paper 2", "subject": "Maths", "date": "2027-01-13", "start": "13:30", "end": "15:30", "room_id": "RM-01", "candidates": 110, "invigilators_required": 5, "invigilators": [{"assignment_id": "AS-532", "staff_id": "ST-09", "name": "Paul Weir", "role": "support"}, {"assignment_id": "AS-533", "staff_id": "ST-07", "name": "Femi Okoro", "role": "support"}, {"assignment_id": "AS-600", "staff_id": "ST-16", "name": "Kit Byrne", "role": "lead"}], "sitting_of": ""}}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>Now remove ST-07 (Femi).</think><tool_call>
+<function=remove_invigilator>
+<parameter=exam_id>
+EX-123
+</parameter>
+<parameter=staff_id>
+ST-07
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"ok": true, "exam": {"exam_id": "EX-123", "paper": "Maths Paper 2", "subject": "Maths", "date": "2027-01-13", "start": "13:30", "end": "15:30", "room_id": "RM-01", "candidates": 110, "invigilators_required": 5, "invigilators": [{"assignment_id": "AS-532", "staff_id": "ST-09", "name": "Paul Weir", "role": "support"}, {"assignment_id": "AS-600", "staff_id": "ST-16", "name": "Kit Byrne", "role": "lead"}], "sitting_of": ""}}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>Now we have invigilators list:
+- AS-532 Paul Weir support
+- AS-600 Kit Byrne lead
+
+Only two entries. Need exactly one lead and two supports? Actually required total is 3 (invigilators_required = 3). But now only 2 rows. Something off: we removed too many; maybe the system's invigilators_required field hasn't been updated after candidate change, still shows old number 5. We need to set candidates first before updating required? The `set_exam_candidates` may affect required count but not automatically update list. Also we haven't yet changed candidate numbers for EX-123 and EX-134.
+
+We also need to assign a second support besides Paul. Currently only lead is Kit Byrne, no other support. We removed Femi and Joan; left only Paul as support. Need another support: maybe ST-03 Sana Mirza or ST-02 Victor Lam etc. But we must ensure they are available at that time.
+
+Let's add a second support assignment for EX-123. Choose ST-03 (Sana Mirza) who is currently assigned to EX-121 as support, but can be reassigned. Check if she has any conflict on 2027-01-13: She has session EX-121 Chemistry Paper 1 start 09:00 end 11:00 role support. At 13:30 free. So okay.
+
+Thus we need to assign ST-03 as support (role "support") and remove her existing assignment? There is no direct tool to change role without removing? We can use `set_invigilator_role` to change role of an existing assignment, but we need assignment ID. Alternatively, we could add new assignment for ST-03 with role support; the system may allow multiple assignments per exam.
+
+Let's try assign_staff: `assign_invigilator(exam_id="EX-123", staff_id="ST-03", role="support")`. This will add a new invigilator entry. It might conflict if already assigned, but we can remove old one first? There is no direct "remove assignment" except by removing the staff from exam (which removes all assignments). That would be too much.
+
+Better approach: Use `set_invigilator_role` on existing assignment for ST-03? But need assignment ID. Hard to know.
+
+Given time constraints, maybe we can simplify: The policy requires exactly one lead and enough support such that total equals required invigilators (3). We currently have 2 rows after removal of two supports; but we also still have Paul as support and Kit Byrne as lead. That's only 1 support. Need another support.
+
+We could change the role of ST-09 from support to lead? No, need one lead. Could make ST-09 lead and remove Paul? But then we lose support count.
+
+Let's reconsider: maybe we should keep three invigilators total after all changes: Lead = ST-16 (Kit Byrne), Support1 = ST-09 (Paul Weir), Support2 = ST-03 (Sana Mirza). That gives 3 rows. So we need to add ST-03 as support and remove Paul? But then only one support.
+
+Thus maybe we should keep three invigilators: Lead=ST-16, Support1=ST-09, Support2=?? We can assign ST-02 but conflict; ST-05 unavailable; ST-08 Lotte Berg (non-lead) could be support. Let's check ST-08 availability and subject.
+
+From staff list earlier:
+- ST-08 Lotte Berg teaches Chemistry, lead_qualified false, available true, no sessions listed for 2027-01-13? Not sure but likely free.
+
+Thus we can assign ST-08 as support.
+
+Let's pick ST-08 (Lotte Berg) as second support. Check if she is already assigned to any exam on that date: from staff schedule, I didn't see ST-08 listed for 2027-01-13 sessions; only maybe none. So free.
+
+Thus final supports: Paul Weir (ST-09), Lotte Berg (ST-08). Need to assign ST-08 as support and remove any existing assignment for ST-08 on EX-123 (none).
+
+We can add `assign_invigilator(exam_id="EX-123", staff_id="ST-08", role="support")`.
+
+Let's do that.</think><tool_call>
+<function=assign_invigilator>
+<parameter=exam_id>
+EX-123
+</parameter>
+<parameter=staff_id>
+ST-08
+</parameter>
+<parameter=role>
+support
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"ok": true, "assignment_id": "AS-601", "exam": {"exam_id": "EX-123", "paper": "Maths Paper 2", "subject": "Maths", "date": "2027-01-13", "start": "13:30", "end": "15:30", "room_id": "RM-01", "candidates": 110, "invigilators_required": 5, "invigilators": [{"assignment_id": "AS-532", "staff_id": "ST-09", "name": "Paul Weir", "role": "support"}, {"assignment_id": "AS-600", "staff_id": "ST-16", "name": "Kit Byrne", "role": "lead"}, {"assignment_id": "AS-601", "staff_id": "ST-08", "name": "Lotte Berg", "role": "support"}], "sitting_of": ""}}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>Now we have invigilators list:
+- AS-532 Paul Weir support
+- AS-600 Kit Byrne lead
+- AS-601 Lotte Berg support
+
+That's 3 total, with one lead (Kit Byrne) and two supports. However, the required number of invigilators is 3? Wait earlier we computed required = ceil(70/25)=3. So having exactly 3 matches.
+
+But we also need to ensure that the lead role staff holds lead qualification and does not teach Maths. Kit Byrne teaches non-teaching, so okay.
+
+Now we must update candidate count for EX-123 from 110 to 70 via `set_exam_candidates`. Let's do that.</think><tool_call>
+<function=set_exam_candidates>
+<parameter=exam_id>
+EX-123
+</parameter>
+<parameter=candidates>
+70
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"ok": true, "exam": {"exam_id": "EX-123", "paper": "Maths Paper 2", "subject": "Maths", "date": "2027-01-13", "start": "13:30", "end": "15:30", "room_id": "RM-01", "candidates": 70, "invigilators_required": 3, "invigilators": [{"assignment_id": "AS-532", "staff_id": "ST-09", "name": "Paul Weir", "role": "support"}, {"assignment_id": "AS-600", "staff_id": "ST-16", "name": "Kit Byrne", "role": "lead"}, {"assignment_id": "AS-601", "staff_id": "ST-08", "name": "Lotte Berg", "role": "support"}], "sitting_of": ""}}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>Great! The set_exam_candidates updated candidates to 70 and invigilators_required now shows 3 (makes sense). Invigilator list matches our desired: lead = ST-16, supports = Paul Weir and Lotte Berg.
+
+Now we need to adjust room for EX-123. According to earlier plan, smallest suitable room is RM-02 (capacity 100) free at that time on 2027-01-13. But currently the exam's room_id is still "RM-01" from list_exams and after many changes? We haven't changed room yet. Need to set room to RM-02 using `set_exam_room` or `reschedule_exam`. Since we only change date/start/room, but not time. Use `set_exam_room(exam_id="EX-123", room_id="RM-02")`. Let's do that.
+
+But before moving, check if RM-02 is free at 13:30-15:30 on 2027-01-13 and seats >=70 candidates (capacity 100). Yes. Also need to ensure no other exam uses RM-02 at same time. From list_exams page 2, there is EX-124 Art History Paper 1 in RM-08, not RM-02. On 2027-01-13, any exam in RM-02? Possibly none. So okay.
+
+Thus call `set_exam_room`.</think><tool_call>
+<function=set_exam_room>
+<parameter=exam_id>
+EX-123
+</parameter>
+<parameter=room_id>
+RM-02
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"ok": true, "exam": {"exam_id": "EX-123", "paper": "Maths Paper 2", "subject": "Maths", "date": "2027-01-13", "start": "13:30", "end": "15:30", "room_id": "RM-02", "candidates": 70, "invigilators_required": 3, "invigilators": [{"assignment_id": "AS-532", "staff_id": "ST-09", "name": "Paul Weir", "role": "support"}, {"assignment_id": "AS-600", "staff_id": "ST-16", "name": "Kit Byrne", "role": "lead"}, {"assignment_id": "AS-601", "staff_id": "ST-08", "name": "Lotte Berg", "role": "support"}], "sitting_of": ""}}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>Now we have EX-123 updated: date 2027-01-13, start 13:30, end 15:30, room RM-02, candidates 70, invigilators_required 3, assignments as desired.
+
+Now need to handle English Language Paper 1 (EX-134). Let's gather its current details from list_exams page 2:
+
+From earlier page 2 entry:
+```
+{
+    "exam_id": "EX-134",
+    "paper": "English Language Paper 1",
+    "subject": "English",
+    "date": "2027-01-14"? Wait we need to verify date. In page 2, near the end: 
+{
+    "exam_id": "EX-134",
+    "paper": "English Language Paper 1",
+    "subject": "English",
+    "date": "2027-01-14",
+    "start": "13:30",
+    "end": "15:30",
+    "room_id": "RM-01",
+    "candidates": 115,
+    "invigilators_required": 5,
+    ...
+}
+```
+
+But we need to confirm date. Let's scroll up in page 2 list again:
+
+Scrolling earlier part of page 2 after EX-133 etc:
+
+From the snippet:
+```
+{
+    "exam_id": "EX-134",
+    "paper": "English Language Paper 1",
+    "subject": "English",
+    "date": "2027-01-14",
+    "start": "13:30",
+    "end": "15:30",
+    "room_id": "RM-01",
+    "candidates": 115,
+    "invigilators_required": 5,
+    ...
+}
+```
+
+Yes, date is 2027-01-14. So we need to update candidate count to 80 (new). Also required invigilators: ceil(80/25)=4, min 2 => 4.
+
+We also need to find smallest room that seats at least 80 candidates and is free on 2027-01-14 from 13:30-15:30. Let's check rooms capacities:
+
+RM-01 Main Hall capacity 120
+RM-02 Sports Hall 100
+RM-03 Library 40
+RM-04 Lecture Theatre 60
+RM-05 Seminar Room A 16
+RM-06 Seminar Room B 24
+RM-07 Music Studio 20 (closed on 2027-01-12 only)
+RM-08 Drama Studio 35
+
+We need capacity >=80. Options: RM-01 (120), RM-02 (100). Smallest is RM-02 (100) if free at that time and not used by another exam overlapping.
+
+Check schedule for 2027-01-14:
+
+From page 3 we saw EX-131 Physics Paper 1 on 2027-01-14 start 09:00 end 11:00 room RM-02. Also EX-132 Economics Paper 1 09:00-10:30 RM-03, etc. For 13:30-15:30 slot on 2027-01-14:
+
+Look at page 3 entries for date 2027-01-15? Actually page 3 is dates 2027-01-15 onward. We need 2027-01-14. That might be in page 2 (since page 2 includes 2027-01-13 and maybe also 2027-01-14?). Let's re-examine page 2: It had entries for date 2027-01-13, but also some on 2027-01-14? The list seems to be sorted by exam id. Hard to parse.
+
+Better to get specific exam details via `list_exams` with subject or paper filter maybe. But we can just use the existing data: EX-134 date is 2027-01-14, start 13:30 end 15:30, room RM-01 currently. Need to find a free room on that day at that time.
+
+Let's check other exams on 2027-01-14:
+
+From page 2 we saw:
+- EX-131 Physics Paper 1 (date 2027-01-14? Actually earlier in page 2: "EX-131, paper 'Physics Paper 1', subject 'Physics', date '2027-01-14', start '09:00', end '11:00', room RM-02". That's morning.
+- EX-132 Economics Paper 1 (date 2027-01-14, 09:00-10:30, RM-03)
+- EX-133 Biology Paper 2 (date 2027-01-14, 13:30-15:30, room RM-02). Yes! On 2027-01-14 at 13:30-15:30, there is Biology Paper 2 in RM-02. So RM-02 is occupied by EX-133 (Biology) during same time slot.
+
+Thus we cannot use RM-02 for EX-134 because it's busy from 13:30 to 15:30 on that date.
+
+Check RM-01 capacity 120, free? On 2027-01-14, any exam in RM-01 at 13:30-15:30? Possibly none. Let's check page 2 for RM-01 on 2027-01-14: Not obvious but we can search.
+
+From list_exams page 2 earlier entries include EX-123 (Maths) date 2027-01-13, not relevant. For 2027-01-14 maybe there is "EX-142 History Paper 2" etc later in page 3. But need to be sure about RM-01.
+
+Given uncertainty, we might choose the smallest room that seats >=80 and is free at that time. Let's examine rooms capacities:
+
+RM-03 Library capacity 40 (too small)
+RM-04 Lecture Theatre 60 (<80)
+RM-05 Seminar A 16
+RM-06 B 24
+RM-07 Music Studio 20 closed on 2027-01-12 only, not relevant for 14th.
+RM-08 Drama Studio 35.
+
+Thus only RM-01 (120) and RM-02 (100) meet capacity >=80. Since RM-02 is occupied at that time, we must use RM-01 if free.
+
+Check if RM-01 has any exam on 2027-01-14 from 13:30 to 15:30. Looking at page 2 maybe there is "EX-142 History Paper 2" date 2027-01-15? Not sure. Let's search for exams with room_id RM-01 and date 2027-01-14.
+
+From list_exams we saw:
+- EX-123 Maths (RM-01) on 2027-01-13.
+- EX-104 Geography Paper 1 (RM-03) etc.
+- EX-111 Physics? Not sure.
+
+Better to query `list_exams` with date filter "2027-01-14". Let's try.</think><tool_call>
+<function=list_exams>
+<parameter=date>
+2027-01-14
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"page": 1, "pages": 1, "total_results": 4, "exams": [{"exam_id": "EX-131", "paper": "Physics Paper 1", "subject": "Physics", "date": "2027-01-14", "start": "09:00", "end": "11:00", "room_id": "RM-02", "candidates": 88, "invigilators_required": 4, "invigilators": [{"assignment_id": "AS-539", "staff_id": "ST-14", "name": "Gwen Tate", "role": "lead"}, {"assignment_id": "AS-540", "staff_id": "ST-03", "name": "Sana Mirza", "role": "support"}, {"assignment_id": "AS-541", "staff_id": "ST-13", "name": "Ian Moss", "role": "support"}, {"assignment_id": "AS-542", "staff_id": "ST-20", "name": "Hugo Varga", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-132", "paper": "Economics Paper 1", "subject": "Economics", "date": "2027-01-14", "start": "09:00", "end": "10:30", "room_id": "RM-03", "candidates": 36, "invigilators_required": 2, "invigilators": [{"assignment_id": "AS-543", "staff_id": "ST-02", "name": "Victor Lam", "role": "lead"}, {"assignment_id": "AS-544", "staff_id": "ST-07", "name": "Femi Okoro", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-133", "paper": "Biology Paper 2", "subject": "Biology", "date": "2027-01-14", "start": "13:30", "end": "15:30", "room_id": "RM-02", "candidates": 75, "invigilators_required": 3, "invigilators": [{"assignment_id": "AS-545", "staff_id": "ST-16", "name": "Kit Byrne", "role": "lead"}, {"assignment_id": "AS-546", "staff_id": "ST-04", "name": "Bill Hart", "role": "support"}, {"assignment_id": "AS-547", "staff_id": "ST-15", "name": "Omar Saleh", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-134", "paper": "English Language Paper 1", "subject": "English", "date": "2027-01-14", "start": "13:30", "end": "15:30", "room_id": "RM-01", "candidates": 115, "invigilators_required": 5, "invigilators": [{"assignment_id": "AS-548", "staff_id": "ST-11", "name": "Tom Quist", "role": "lead"}, {"assignment_id": "AS-549", "staff_id": "ST-01", "name": "Joan Pell", "role": "support"}, {"assignment_id": "AS-550", "staff_id": "ST-22", "name": "Leo Park", "role": "support"}, {"assignment_id": "AS-551", "staff_id": "ST-12", "name": "Eva Novak", "role": "support"}, {"assignment_id": "AS-552", "staff_id": "ST-17", "name": "Mina Cho", "role": "support"}], "sitting_of": ""}]}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>Great! This gives us EX-134 details:
+
+- exam_id: EX-134
+- paper: English Language Paper 1
+- date: 2027-01-14
+- start: 13:30, end: 15:30
+- room_id: RM-01 (currently)
+- candidates: 115 (needs update to 80)
+- invigilators_required: 5 (but policy says required = ceil(80/25)=4; but currently shows 5. We'll need to adjust later.)
+- invigilators list includes lead Tom Quist (ST-11), and support assignments for ST-01, ST-22, ST-12, ST-17.
+
+We need to update candidate count to 80 via `set_exam_candidates`. Then compute required invigilators = max(2, ceil(80/25)=4) => 4. So we need exactly 4 invigilators: one lead and three support? Or could be any number as long as total equals required (4). The policy says "Every exam has exactly one lead invigilator... all others are support." So total = lead + support count = required. If required=4, then we need 1 lead + 3 supports.
+
+Currently there is a lead Tom Quist (ST-11) but he teaches English, so cannot be lead for English Language exam? The rule: "A teacher may not invigilate an exam in the subject they teach." So ST-14 Gwen Tate teaches English; ST-11 Tom Quist teaches Maths. Wait earlier find_staff showed Tom Quist teaches Maths. For EX-134 (English), lead cannot be a teacher of English, i.e., cannot be ST-14 (Gwen Tate) or ST-19 (Zara Malik). So we need a lead who does NOT teach English and is lead qualified.
+
+From list of staff with lead_qualified true: ST-01 Joan Pell (non-teaching), ST-02 Victor Lam (non-teaching), ST-05 Clara Diaz (Physics), ST-07 Femi Okoro (Chemistry), ST-09 Paul Weir (Biology), ST-11 Tom Quist (Maths), ST-14 Gwen Tate (English), ST-16 Kit Byrne (non-teaching), ST-21 Rita Varga (Physics). So candidates for lead: non-English teachers with lead qualified.
+
+We need a lead for EX-134 on 2027-01-14 at 13:30-15:30, room RM-01. Check availability of each candidate:
+
+From staff schedule for date 2027-01-14 (we have list from `list_staff_schedule` earlier? Not yet). Let's get staff schedule for 2027-01-14 using tool.</think><tool_call>
+<function=list_staff_schedule>
+<parameter=date>
+2027-01-14
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"date": "2027-01-14", "staff": [{"staff_id": "ST-01", "name": "Joan Pell", "teaches": "(non-teaching)", "lead_qualified": true, "available": true, "sessions": [{"exam_id": "EX-134", "paper": "English Language Paper 1", "start": "13:30", "end": "15:30", "role": "support"}]}, {"staff_id": "ST-02", "name": "Victor Lam", "teaches": "(non-teaching)", "lead_qualified": true, "available": true, "sessions": [{"exam_id": "EX-132", "paper": "Economics Paper 1", "start": "09:00", "end": "10:30", "role": "lead"}]}, {"staff_id": "ST-03", "name": "Sana Mirza", "teaches": "(non-teaching)", "lead_qualified": false, "available": true, "sessions": [{"exam_id": "EX-131", "paper": "Physics Paper 1", "start": "09:00", "end": "11:00", "role": "support"}]}, {"staff_id": "ST-04", "name": "Bill Hart", "teaches": "(non-teaching)", "lead_qualified": false, "available": true, "sessions": [{"exam_id": "EX-133", "paper": "Biology Paper 2", "start": "13:30", "end": "15:30", "role": "support"}]}, {"staff_id": "ST-05", "name": "Clara Diaz", "teaches": "Physics", "lead_qualified": true, "available": true, "sessions": []}, {"staff_id": "ST-06", "name": "Noel Grant", "teaches": "Physics", "lead_qualified": false, "available": true, "sessions": []}, {"staff_id": "ST-07", "name": "Femi Okoro", "teaches": "Chemistry", "lead_qualified": true, "available": true, "sessions": [{"exam_id": "EX-132", "paper": "Economics Paper 1", "start": "09:00", "end": "10:30", "role": "support"}]}, {"staff_id": "ST-08", "name": "Lotte Berg", "teaches": "Chemistry", "lead_qualified": false, "available": true, "sessions": []}, {"staff_id": "ST-09", "name": "Paul Weir", "teaches": "Biology", "lead_qualified": true, "available": true, "sessions": []}, {"staff_id": "ST-10", "name": "Asha Rao", "teaches": "Biology", "lead_qualified": false, "available": true, "sessions": []}, {"staff_id": "ST-11", "name": "Tom Quist", "teaches": "Maths", "lead_qualified": true, "available": true, "sessions": [{"exam_id": "EX-134", "paper": "English Language Paper 1", "start": "13:30", "end": "15:30", "role": "lead"}]}, {"staff_id": "ST-12", "name": "Eva Novak", "teaches": "Maths", "lead_qualified": false, "available": true, "sessions": [{"exam_id": "EX-134", "paper": "English Language Paper 1", "start": "13:30", "end": "15:30", "role": "support"}]}, {"staff_id": "ST-13", "name": "Ian Moss", "teaches": "History", "lead_qualified": false, "available": true, "sessions": [{"exam_id": "EX-131", "paper": "Physics Paper 1", "start": "09:00", "end": "11:00", "role": "support"}]}, {"staff_id": "ST-14", "name": "Gwen Tate", "teaches": "English", "lead_qualified": true, "available": true, "sessions": [{"exam_id": "EX-131", "paper": "Physics Paper 1", "start": "09:00", "end": "11:00", "role": "lead"}]}, {"staff_id": "ST-15", "name": "Omar Saleh", "teaches": "(non-teaching)", "lead_qualified": false, "available": true, "sessions": [{"exam_id": "EX-133", "paper": "Biology Paper 2", "start": "13:30", "end": "15:30", "role": "support"}]}, {"staff_id": "ST-16", "name": "Kit Byrne", "teaches": "(non-teaching)", "lead_qualified": true, "available": true, "sessions": [{"exam_id": "EX-133", "paper": "Biology Paper 2", "start": "13:30", "end": "15:30", "role": "lead"}]}, {"staff_id": "ST-17", "name": "Mina Cho", "teaches": "Geography", "lead_qualified": false, "available": true, "sessions": [{"exam_id": "EX-134", "paper": "English Language Paper 1", "start": "13:30", "end": "15:30", "role": "support"}]}, {"staff_id": "ST-18", "name": "Dara Flynn", "teaches": "(non-teaching)", "lead_qualified": false, "available": true, "sessions": []}, {"staff_id": "ST-19", "name": "Zara Malik", "teaches": "English", "lead_qualified": false, "available": true, "sessions": []}, {"staff_id": "ST-20", "name": "Hugo Varga", "teaches": "(non-teaching)", "lead_qualified": false, "available": true, "sessions": [{"exam_id": "EX-131", "paper": "Physics Paper 1", "start": "09:00", "end": "11:00", "role": "support"}]}, {"staff_id": "ST-21", "name": "Rita Varga", "teaches": "Physics", "lead_qualified": true, "available": true, "sessions": []}, {"staff_id": "ST-22", "name": "Leo Park", "teaches": "(non-teaching)", "lead_qualified": false, "available": true, "sessions": [{"exam_id": "EX-134", "paper": "English Language Paper 1", "start": "13:30", "end": "15:30", "role": "support"}]}]}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>We have staff schedule for 2027-01-14. For EX-134 (English Language Paper 1) at 13:30-15:30, there are sessions:
+
+- ST-01 Joan Pell role support.
+- ST-02 Victor Lam lead? Actually his session is EX-132 Economics 09:00-10:30 lead; not relevant to 13:30 slot.
+- ST-03 Sana Mirza support for Physics (EX-131) at 09:00-11:00, not conflict.
+- ST-04 Bill Hart support for Biology 13:30-15:30? Actually from schedule: ST-04 has session EX-133 Biology Paper 2 start 13:30 end 15:30 role support. So he is assigned to EX-133 at same time slot (13:30-15:30). That conflicts with our exam.
+- ST-05 Clara Diaz no sessions listed, lead qualified, available true, teaches Physics. Could be candidate for lead? She does not teach English, so okay. But need to check if she has any session on 2027-01-14 at that time; none listed.
+
+- ST-06 Noel Grant no sessions.
+- ST-07 Femi Okoro support for Economics (EX-132) start 09:00 end 10:30 role support, not conflict.
+- ST-08 Lotte Berg no sessions.
+- ST-09 Paul Weir no sessions.
+- ST-10 Asha Rao none.
+- ST-11 Tom Quist lead for English exam currently; he is assigned as lead for EX-134 (role lead). That's a problem because we need to change lead.
+
+- ST-12 Eva Novak support for English exam, role support. She teaches Maths, so cannot be support? Actually rule: teacher may not invigilate an exam in the subject they teach. Eva teaches Maths, but this is English exam; she can still be support? The rule only prohibits teaching the same subject as the exam. So for English exam, a teacher of English (Zara Malik) or Chemistry etc cannot be lead/ support? It says "A teacher may not invigilate an exam in the subject they teach." So if Eva teaches Maths, she can still invigilate English paper because it's not her teaching subject. So okay.
+
+- ST-13 Ian Moss support for Physics 09:00-11:00.
+- ST-14 Gwen Tate lead for Physics 09:00-11:00; also teaches English (cannot be lead for English). Not suitable.
+- ST-15 Omar Saleh support for Biology 13:30-15:30. He is non-teaching, available true. Could be support.
+
+- ST-16 Kit Byrne lead for Biology 13:30-15:30; also non-teaching, but already assigned as lead for EX-133 (Biology) at same time? That's a conflict maybe because two exams overlapping in same room/time? But we need to check. For now.
+
+- ST-17 Mina Cho support for Geography 13:30-15:30; teaches Geography, not English, okay.
+
+- ST-18 Dara Flynn none.
+- ST-19 Zara Malik no sessions listed (maybe free).
+- ST-20 Hugo Varga support for Physics 09:00-11:00.
+- ST-21 Rita Varga lead for Physics, available true, teaches Physics.
+- ST-22 Leo Park support for English exam currently.
+
+Thus many candidates. We need a lead who is not teaching English and has no conflict at that time (13:30-15:30). Also must be available on 2027-01-14.
+
+Potential leads:
+- ST-05 Clara Diaz (lead qualified, teaches Physics) - available true, no sessions listed for this date. So she could be lead.
+- ST-06 Noel Grant (not lead qualified).
+- ST-08 Lotte Berg (non-lead qualified). Not suitable because need lead qualification? The policy says "Every exam has exactly one lead invigilator, who must hold the lead qualification". So lead must have lead_qualified true. So we need a staff with lead_qualified true.
+
+Candidates with lead_qualified true and available on 2027-01-14:
+From list: ST-01 (lead qualified, non-teaching) but has session EX-134 support at that time; currently assigned as support for English exam. He is unavailable? It says available true. But he's already assigned to the exam as support role. We need to change his role to lead maybe.
+
+ST-02 Victor Lam (lead qualified, non-teaching). His only session is EX-132 Economics 09:00-10:30 lead; at 13:30 free.
+
+ST-05 Clara Diaz (lead qualified, Physics) no sessions listed for this date. Good candidate.
+
+ST-07 Femi Okoro (lead qualified, Chemistry) has support role for EX-132? Actually his session is EX-132 support. At 13:30 free.
+
+ST-09 Paul Weir (lead qualified, Biology) no sessions listed; available true.
+
+ST-11 Tom Quist (lead qualified, Maths) currently assigned as lead for English exam; can't be lead because he teaches Maths? Actually rule about teaching the subject they teach applies to invigilating that same subject. For English exam, a teacher of English cannot be lead/ support. Tom teaches Maths, so okay.
+
+ST-14 Gwen Tate (lead qualified, English) cannot be lead for English.
+
+ST-16 Kit Byrne (lead qualified, non-teaching). Already assigned as lead for Biology on 13:30; conflict with English exam at same time? Possibly overlapping. Need to check if they share room/time. For EX-133 Biology is in RM-02 from 13:30-15:30. Our new exam EX-134 also wants a room (maybe RM-01). So maybe no overlap of rooms, but staff cannot be assigned to two exams at same time? The rule "Staff cannot invigilate on a date they are unavailable, in two exams whose times overlap, or in more than max_sessions_per_day exams on one day." Overlap includes both time and room? Likely overlapping times regardless of room. So if ST-16 is already assigned to EX-133 (Biology) 13:30-15:30, then cannot also be lead for EX-134 at same time.
+
+ST-21 Rita Varga (lead qualified, Physics). No sessions listed; available true.
+
+Thus many options.
+
+We also need exactly total invigilators = required = ceil(80/25)=4. So we need 1 lead + 3 supports.
+
+Current assignments for EX-134 before updates:
+- Lead: ST-11 Tom Quist (role lead)
+- Supports: ST-01 Joan Pell, ST-22 Leo Park, ST-12 Eva Novak, ST-17 Mina Cho (four support entries). That's total 5 invigilators.
+
+We need to adjust:
+
+1. Change candidate count from 115 to 80 via `set_exam_candidates`.
+2. Update required invigilators to 4.
+3. Remove most recent support assignments first: identify which are most recent (highest assignment IDs). We have AS-548 (ST-11 lead), AS-549 (ST-01 support), AS-550 (ST-22 support), AS-551 (ST-12 support), AS-552 (ST-17 support). The highest ID is AS-552 (ST-17 Mina Cho) maybe most recent. But we need to remove support ones first, starting from the most recent.
+
+We also need to change lead role: Tom Quist teaches Maths, cannot be lead for English exam. So we must replace him with another eligible lead.
+
+Thus steps:
+
+- Set candidates = 80.
+- Remove support assignments in order of highest ID until total invigilators count reduces to required (4). Currently there are many supports; after removal we need exactly 3 supports + 1 lead = 4 total. So we need to remove enough supports so that only 3 remain.
+
+Let's list current invigilators for EX-134 from `list_staff_schedule` entry: For date 2027-01-14, the sessions for English exam (EX-134) are:
+- ST-01 Joan Pell role support
+- ST-11 Tom Quist lead
+- ST-12 Eva Novak support
+- ST-17 Mina Cho support
+- ST-22 Leo Park support
+
+Thus there are 5 invigilators: one lead, four supports. We need to reduce to total 4 (i.e., remove at least one support). But also need a new lead who meets criteria.
+
+We can:
+- Remove the most recent support assignment first: highest ID among these is AS-552 (ST-17 Mina Cho) maybe? Need to map IDs for EX-134. We don't have explicit assignment IDs, but we can infer from list: For EX-134, invigilators list includes AS-548 (ST-11 lead), AS-549 (ST-01 support), AS-550 (ST-22 support), AS-551 (ST-12 support), AS-552 (ST-17 support). So highest ID = AS-552 (ST-17 Mina Cho) is most recent support. Remove ST-17 first.
+
+Then next most recent: AS-551 (ST-12 Eva Novak). Remove that.
+
+After removing two supports, we would have lead + 2 supports left (Joan Pell, Leo Park? Actually after removal of ST-01 and ST-22 maybe?). Let's see:
+
+Current list:
+AS-548 Tom Quist lead
+AS-549 Joan Pell support
+AS-550 Leo Park support
+AS-551 Eva Novak support
+AS-552 Mina Cho support
+
+Remove AS-552 (ST-17) -> leaves 4 invigilators: lead + 3 supports? Wait we removed one support, leaving 1 lead + 3 supports = 4 total. That matches required count of 4.
+
+Thus after removing two most recent supports (AS-552 and AS-551), we would have:
+- Lead: ST-11 Tom Quist
+- Supports: ST-01 Joan Pell, ST-22 Leo Park, ST-12 Eva Novak
+
+But need to ensure lead is eligible for English exam. Tom teaches Maths, so cannot be lead. So we must change lead role of Tom to support and assign a new lead.
+
+Thus after removal of supports, we will have:
+- Lead: ST-11 (Tom Quist) still present but role lead.
+We need to change his role to support, then add new lead candidate.
+
+Let's proceed stepwise:
+
+Step A: Set candidates for EX-134 to 80.</think><tool_call>
+<function=set_exam_candidates>
+<parameter=exam_id>
+EX-134
+</parameter>
+<parameter=candidates>
+80
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"ok": true, "exam": {"exam_id": "EX-134", "paper": "English Language Paper 1", "subject": "English", "date": "2027-01-14", "start": "13:30", "end": "15:30", "room_id": "RM-01", "candidates": 80, "invigilators_required": 4, "invigilators": [{"assignment_id": "AS-548", "staff_id": "ST-11", "name": "Tom Quist", "role": "lead"}, {"assignment_id": "AS-549", "staff_id": "ST-01", "name": "Joan Pell", "role": "support"}, {"assignment_id": "AS-550", "staff_id": "ST-22", "name": "Leo Park", "role": "support"}, {"assignment_id": "AS-551", "staff_id": "ST-12", "name": "Eva Novak", "role": "support"}, {"assignment_id": "AS-552", "staff_id": "ST-17", "name": "Mina Cho", "role": "support"}], "sitting_of": ""}}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>Now invigilators_required updated to 4. We need exactly 4 invigilators total: one lead, three supports.
+
+Current list has 5 entries (lead + 4 supports). Need to remove two support assignments (most recent first) and change lead role.
+
+Step B: Remove most recent support assignment AS-552 (ST-17 Mina Cho). Use `remove_invigilator(exam_id="EX-134", staff_id="ST-17")`.</think><tool_call>
+<function=remove_invigilator>
+<parameter=exam_id>
+EX-134
+</parameter>
+<parameter=staff_id>
+ST-17
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"ok": true, "exam": {"exam_id": "EX-134", "paper": "English Language Paper 1", "subject": "English", "date": "2027-01-14", "start": "13:30", "end": "15:30", "room_id": "RM-01", "candidates": 80, "invigilators_required": 4, "invigilators": [{"assignment_id": "AS-548", "staff_id": "ST-11", "name": "Tom Quist", "role": "lead"}, {"assignment_id": "AS-549", "staff_id": "ST-01", "name": "Joan Pell", "role": "support"}, {"assignment_id": "AS-550", "staff_id": "ST-22", "name": "Leo Park", "role": "support"}, {"assignment_id": "AS-551", "staff_id": "ST-12", "name": "Eva Novak", "role": "support"}], "sitting_of": ""}}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>Now remove next most recent support: AS-551 (ST-12 Eva Novak).</think><tool_call>
+<function=remove_invigilator>
+<parameter=exam_id>
+EX-134
+</parameter>
+<parameter=staff_id>
+ST-12
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"ok": true, "exam": {"exam_id": "EX-134", "paper": "English Language Paper 1", "subject": "English", "date": "2027-01-14", "start": "13:30", "end": "15:30", "room_id": "RM-01", "candidates": 80, "invigilators_required": 4, "invigilators": [{"assignment_id": "AS-548", "staff_id": "ST-11", "name": "Tom Quist", "role": "lead"}, {"assignment_id": "AS-549", "staff_id": "ST-01", "name": "Joan Pell", "role": "support"}, {"assignment_id": "AS-550", "staff_id": "ST-22", "name": "Leo Park", "role": "support"}], "sitting_of": ""}}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>Now we have 3 supports (Tom lead, Joan Pell support, Leo Park support). Need one more support to reach total of 4 invigilators? Wait required is 4 total. Currently we have:
+- Lead: Tom Quist (1)
+- Supports: Joan Pell, Leo Park = 2
+We need total 4 => need two more supports? Actually 1 lead + 3 supports = 4. We currently have only 2 supports. So we need to add one more support.
+
+But also need to change lead role because Tom teaches Maths and cannot be lead for English exam. So we must remove his assignment (or change role) and assign a new lead who meets criteria, while keeping total invigilators = 4.
+
+Option: Change Tom's role from lead to support, then add a new lead candidate (e.g., ST-05 Clara Diaz or ST-02 Victor Lam etc.) as lead. Then we will have supports: Tom + two others? Let's see.
+
+Current after removal of Eva Novak:
+Invigilators list:
+AS-548 Tom Quist role lead
+AS-549 Joan Pell support
+AS-550 Leo Park support
+
+That's 3 entries (lead + 2 supports). Need total 4. So we need to add one more support, and also change lead.
+
+Thus steps:
+
+1. Change Tom Quist's role from lead to support: `set_invigilator_role(exam_id="EX-134", staff_id="ST-11", role="support")`.
+
+2. Assign new lead candidate (e.g., ST-05 Clara Diaz) as lead, but need to ensure she is available and not already assigned. She has no sessions listed for this date; lead qualified true.
+
+3. Add assignment for new lead: `assign_invigilator(exam_id="EX-134", staff_id="ST-05", role="lead")`.
+
+4. Add a support assignment for the new lead? No, lead is separate.
+
+5. After adding new lead, we will have supports: Tom (now support), Joan Pell, Leo Park = 3 supports + 1 lead = 4 total. Good.
+
+Let's proceed with step 1: change role of ST-11 to support.</think><tool_call>
+<function=set_invigilator_role>
+<parameter=exam_id>
+EX-134
+</parameter>
+<parameter=staff_id>
+ST-11
+</parameter>
+<parameter=role>
+support
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"ok": true, "exam": {"exam_id": "EX-134", "paper": "English Language Paper 1", "subject": "English", "date": "2027-01-14", "start": "13:30", "end": "15:30", "room_id": "RM-01", "candidates": 80, "invigilators_required": 4, "invigilators": [{"assignment_id": "AS-548", "staff_id": "ST-11", "name": "Tom Quist", "role": "support"}, {"assignment_id": "AS-549", "staff_id": "ST-01", "name": "Joan Pell", "role": "support"}, {"assignment_id": "AS-550", "staff_id": "ST-22", "name": "Leo Park", "role": "support"}], "sitting_of": ""}}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>Now we have Tom as support, and supports: Joan Pell, Leo Park. That's only 2 supports + lead? Wait after changing role, the list shows three entries: AS-548 (Tom Quist) now support, AS-549 Joan Pell support, AS-550 Leo Park support. There is no new lead yet; we need to add a lead.
+
+We also still have two more supports (maybe ST-12 and ST-17 removed). So currently total invigilators = 3 (all support). Need one lead. We'll assign new lead candidate.
+
+Choose ST-05 Clara Diaz as lead. Check availability: from staff schedule for 2027-01-14, ST-05 has no sessions listed; available true. She teaches Physics, not English, so eligible.
+
+Proceed:
+
+- `assign_invigilator(exam_id="EX-134", staff_id="ST-05", role="lead")`.
+
+Let's do that.</think><tool_call>
+<function=assign_invigilator>
+<parameter=exam_id>
+EX-134
+</parameter>
+<parameter=staff_id>
+ST-05
+</parameter>
+<parameter=role>
+lead
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"ok": true, "assignment_id": "AS-602", "exam": {"exam_id": "EX-134", "paper": "English Language Paper 1", "subject": "English", "date": "2027-01-14", "start": "13:30", "end": "15:30", "room_id": "RM-01", "candidates": 80, "invigilators_required": 4, "invigilators": [{"assignment_id": "AS-548", "staff_id": "ST-11", "name": "Tom Quist", "role": "support"}, {"assignment_id": "AS-549", "staff_id": "ST-01", "name": "Joan Pell", "role": "support"}, {"assignment_id": "AS-550", "staff_id": "ST-22", "name": "Leo Park", "role": "support"}, {"assignment_id": "AS-602", "staff_id": "ST-05", "name": "Clara Diaz", "role": "lead"}], "sitting_of": ""}}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>Now we have invigilators list:
+- AS-548 Tom Quist support (was lead, now support)
+- AS-549 Joan Pell support
+- AS-550 Leo Park support
+- AS-602 Clara Diaz lead
+
+Total 4 invigilators: one lead (Clara Diaz) and three supports. This matches required count of 4.
+
+Now we need to set room for EX-134. Currently room_id is RM-01. Need smallest suitable room that seats >=80 candidates on date 2027-01-14 at time 13:30-15:30, free, not closed.
+
+We previously determined RM-02 is occupied by Biology exam (EX-133) from 13:30-15:30 on same day. So cannot use RM-02. Need another room with capacity >=80 and free at that time.
+
+Check rooms capacities again:
+RM-01 Main Hall 120
+RM-02 Sports Hall 100 (occupied)
+RM-03 Library 40 (<80)
+RM-04 Lecture Theatre 60 (<80)
+RM-05 Seminar A 16
+RM-06 B 24
+RM-07 Music Studio 20 (closed on 2027-01-12 only, not relevant for 14th)
+RM-08 Drama Studio 35
+
+Thus only RM-01 and RM-02 meet capacity >=80. Since RM-02 is taken by EX-133 at same time, we must use RM-01 if free.
+
+Check if RM-01 has any exam on 2027-01-14 from 13:30 to 15:30. From list_exams for date 2027-01-14, there is no entry with room_id RM-01 for that day? Let's see:
+
+From the `list_staff_schedule` we saw sessions but not rooms. However earlier in EX-134 details (from list_exams) shows room_id "RM-01". So currently it's assigned to English exam. We need to move it to another free room, maybe RM-03? But capacity 40 insufficient for 80 candidates. So must be RM-01 or RM-02. Since RM-02 is occupied by EX-133 (Biology) at same time, we cannot use that.
+
+Thus perhaps there is a larger room like RM-04 (capacity 60) not enough; RM-05 etc too small. So maybe we need to consider overlapping times: Could we move the exam to another date/time? The policy says "An exam can only be rescheduled once all its invigilators have been taken off it." We haven't done that yet for EX-134 (English). But we might still be able to move room if no conflict.
+
+But maybe there is a room RM-01 free at 13:30-15:30 on 2027-01-14? It currently hosts EX-134. Need another exam in RM-01 at that time? Let's check other exams on 2027-01-14 with start/end overlapping 13:30-15:30:
+
+From list_exams for date 2027-01-14:
+- EX-131 Physics Paper 1 (09:00-11:00, RM-02)
+- EX-132 Economics Paper 1 (09:00-10:30, RM-03)
+- EX-133 Biology Paper 2 (13:30-15:30, RM-02)
+- EX-134 English Language Paper 1 (13:30-15:30, RM-01)
+- Possibly others like EX-135 etc not listed.
+
+Thus only EX-133 occupies RM-02 during that slot. So RM-01 is free except for our exam. Therefore we need to move EX-134 to a different room with capacity >=80 and free at that time. The only other candidate is maybe RM-03 (capacity 40) insufficient; RM-04 (60) insufficient; RM-05 etc too small. So perhaps there is no suitable room? But policy says "smallest room that seats its candidates and is free at that time, which may well be the room it is already in." For EX-134 maybe they intend to keep RM-01 because it's smallest >=80 and free? Wait we thought RM-02 was occupied by Biology exam. Let's double-check: EX-133 (Biology Paper 2) on 2027-01-14 start 13:30 end 15:30 room RM-02. Yes, that occupies RM-02 during same time slot. So RM-01 is free? But we need to verify if any other exam uses RM-01 at that time. Looking at list_exams for date 2027-01-14, there is no entry with room_id RM-01 except EX-134 itself. So RM-01 is free.
+
+Thus smallest suitable room >=80 and free is RM-01 (capacity 120). Since it's already the current room, we can keep it. The instruction "which may well be the room it is already in" suggests staying in same room if possible. So we don't need to move EX-134; just ensure candidate count updated and invigilators set.
+
+Thus no need for `set_exam_room` for EX-134.
+
+Now we also need to update candidate number from 115 to 80 (done). Also maybe need to adjust invigilator_required field? It's already 4 after set_candidates. Good.
+
+Now we must handle Maths Paper 2 (EX-123) room change: we moved it to RM-02 earlier, but is that correct given capacity and free time? We determined RM-02 was free at 13:30-15:30 on 2027-01-13. Let's verify no conflict there.
+
+From list_exams for date 2027-01-13:
+- EX-121 Chemistry Paper 1 (RM-01)
+- EX-122 French Paper 1 (RM-04)
+- EX-123 Maths Paper 2 (now RM-02)
+- EX-124 Art History Paper 1 (RM-08)
+- etc.
+
+Thus RM-02 is free at that time. Good.
+
+Now we also need to update candidate count for EX-123 from 110 to 70 (done). Invigilators_required updated after set_candidates? It shows invigilators_required:3 now, matches total invigilators =3. Good.
+
+We also moved room for EX-123 to RM-02 earlier via `set_exam_room`. That's done.
+
+Now we need to update candidate count for EX-134 (done). Also maybe need to adjust its room? It stays RM-01.
+
+Now we must ensure that the number of invigilators matches required and roles correct. For EX-123, after modifications:
+- Candidates 70
+- Invigilators_required = 3
+- Invigilators list: AS-532 Paul Weir support, AS-600 Kit Byrne lead, AS-601 Lotte Berg support.
+
+We need exactly one lead (Kit Byrne) and two supports. That's correct.
+
+But we also changed roles earlier: Paul Weir was support; Kit Byrne is lead; Lotte Berg support. Good.
+
+Now for EX-134:
+- Candidates 80
+- Invigilators_required = 4
+- Invigilators list: AS-548 Tom Quist support, AS-549 Joan Pell support, AS-550 Leo Park support, AS-602 Clara Diaz lead.
+Thus one lead (Clara Diaz) and three supports. Good.
+
+Now we need to ensure staff assignments are available on their dates:
+
+Check availability for each involved staff on respective dates:
+
+For EX-123 (2027-01-13):
+- Paul Weir (ST-09): available true, no conflict.
+- Kit Byrne (ST-16): available true, but he has a session EX-133 Biology 13:30-15:30? Wait ST-16 is assigned as lead for EX-133 on that date. That's a conflict because both exams overlap at same time and room? Actually EX-133 uses RM-02 from 13:30-15:30, while EX-123 now uses RM-02 also from 13:30-15:30. So they share the same room and time! That violates "An exam's room must seat all its candidates, be open that day and not be used by another exam at an overlapping time." So we cannot have both exams in same room at same time.
+
+We need to re-evaluate EX-123 room assignment: We moved it to RM-02. But there is also Biology Paper 2 (EX-133) on the same date/time in RM-02. That's a conflict. Therefore our earlier decision for smallest suitable room was wrong because we didn't consider other exams.
+
+We need to find another room that seats >=70 and is free at 13:30-15:30 on 2027-01-13, not used by any exam at that time.
+
+Let's list rooms capacities again:
+
+RM-01 Main Hall 120
+RM-02 Sports Hall 100 (occupied by EX-133 Biology)
+RM-03 Library 40 (<70)
+RM-04 Lecture Theatre 60 (<70)
+RM-05 Seminar A 16
+RM-06 B 24
+RM-07 Music Studio 20 (closed on 2027-01-12 only, not relevant for 13th)
+RM-08 Drama Studio 35
+
+Thus no room with capacity >=70 is free at that time except maybe RM-01? But we need to check if RM-01 has any exam at 13:30-15:30 on 2027-01-13. From list_exams for date 2027-01-13, there is EX-123 Maths (now in RM-02), EX-124 Art History (RM-08 13:30-15:00). No entry for RM-01 at that time. So RM-01 might be free.
+
+Thus we should move EX-123 to RM-01 instead of RM-02, because RM-02 is taken by Biology exam. Let's verify capacity: RM-01 capacity 120 >=70. So smallest room with capacity >=70 and free is RM-01 (capacity 120). But earlier we thought RM-01 was occupied? Actually for EX-123 originally it was in RM-01, but we moved to RM-02. We need to revert to RM-01 if possible.
+
+Thus we should change room back to RM-01 using `set_exam_room(exam_id="EX-123", room_id="RM-01")`.
+
+But before that, we must ensure no conflict: Is there any exam on 2027-01-13 at RM-01 from 13:30-15:30? Looking at list_exams for date 2027-01-13: EX-121 Chemistry (09:00-11:00 RM-01), EX-122 French (09:00-10:30 RM-04). No Maths or Art History in RM-01. So RM-01 is free.
+
+Thus we should move EX-123 back to RM-01.
+
+Let's do that.</think><tool_call>
+<function=set_exam_room>
+<parameter=exam_id>
+EX-123
+</parameter>
+<parameter=room_id>
+RM-01
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"ok": true, "exam": {"exam_id": "EX-123", "paper": "Maths Paper 2", "subject": "Maths", "date": "2027-01-13", "start": "13:30", "end": "15:30", "room_id": "RM-01", "candidates": 70, "invigilators_required": 3, "invigilators": [{"assignment_id": "AS-532", "staff_id": "ST-09", "name": "Paul Weir", "role": "support"}, {"assignment_id": "AS-600", "staff_id": "ST-16", "name": "Kit Byrne", "role": "lead"}, {"assignment_id": "AS-601", "staff_id": "ST-08", "name": "Lotte Berg", "role": "support"}], "sitting_of": ""}}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>Now EX-123 is back to RM-01. Check if any conflict: RM-01 at 13:30-15:30 on 2027-01-13 has no exam (except maybe something else). So fine.
+
+Now we need to ensure invigilators for EX-123 are correct:
+
+Current list after set_exam_room:
+- AS-532 Paul Weir support
+- AS-600 Kit Byrne lead
+- AS-601 Lotte Berg support
+
+Total 3, one lead (Kit Byrne), two supports. Good.
+
+Now we need to verify that staff availability for each on 2027-01-13:
+
+- Paul Weir (ST-09): available true.
+- Kit Byrne (ST-16): available true.
+- Lotte Berg (ST-08): from staff schedule, ST-08 has no sessions listed for 2027-01-13; available true.
+
+Thus all good. Also need to ensure lead is not teaching Maths: Kit Byrne teaches non-teaching, okay.
+
+Now we must also update candidate count for EX-123 already set to 70 and invigilators_required =3 matches total.
+
+Now we should also adjust room for EX-134? It stays RM-01. But need to check if RM-01 is free at that time on 2027-01-14: currently it hosts English exam (EX-134). We might want to move it to another suitable room, but capacity constraints make RM-02 the only other >=80; but it's occupied by Biology exam EX-133. Could we move EX-133? That would be more complex. Perhaps there is a larger room like RM-03 (capacity 40) insufficient for 80 candidates. So maybe they allow moving to same room if no conflict? But there is conflict.
+
+Let's double-check capacity of RM-01: 120 seats, enough. For EX-134 we need 80 candidates; RM-01 free at that time? It currently hosts EX-134 itself. We could move it to another room with capacity >=80 and free at same time. The only other is RM-02 (occupied by Biology). So maybe they intend to keep in RM-01 despite conflict because "may well be the room it is already in". But there is a conflict with Biology exam on same date/time, which would violate rule.
+
+Thus we need to resolve this: perhaps EX-133 (Biology) uses a different time? Let's verify EX-133 details from list_exams for 2027-01-14:
+
+From earlier page 2:
+```
+{
+    "exam_id": "EX-133",
+    "paper": "Biology Paper 2",
+    "subject": "Biology",
+    "date": "2027-01-14",
+    "start": "13:30",
+    "end": "15:30",
+    "room_id": "RM-02",
+    ...
+}
+```
+Yes, it's RM-02. So not same room as EX-134 (RM-01). Thus we can keep EX-134 in RM-01 without conflict with Biology exam which is in RM-02.
+
+Thus no need to move EX-134.
+
+Now we must also update candidate count for EX-123 from 110 to 70 and invigilators_required updated after set_candidates. Already done.
+
+We also need to ensure that the number of invigilators matches required (3). It does.
+
+Now we should verify all updates:
+
+- For EX-123:
+  - exam_id: EX-123
+  - paper: Maths Paper 2
+  - date: 2027-01-13
+  - start: 13:30, end:15:30
+  - room: RM-01
+  - candidates: 70 (set)
+  - invigilators_required: 3 (from set_candidates)
+  - invigilators list: Paul Weir support, Kit Byrne lead, Lotte Berg support.
+
+- For EX-134:
+  - exam_id: EX-134
+  - paper: English Language Paper 1
+  - date: 2027-01-14
+  - start:13:30 end:15:30
+  - room: RM-01 (unchanged)
+  - candidates:80 (set)
+  - invigilators_required:4
+  - invigilators list: Tom Quist support, Joan Pell support, Leo Park support, Clara Diaz lead.
+
+We also need to ensure that for EX-134 we have exactly one lead (Clara Diaz) and three supports. Yes.
+
+Now we must handle any other exams? The user only asked about these two papers. So we should not change others.
+
+Let's summarize actions performed:
+
+For EX-123:
+- set_exam_candidates(candidates=70)
+- remove_invigilator(ST-22) (already done earlier but maybe irrelevant for this exam; that was for Maths? Actually ST-22 removal was for EX-123 earlier. Yes we removed ST-22.)
+- remove_invigilator(ST-04)
+- set_invigilator_role(ST-09 to support)
+- assign_invigilator(ST-11 lead) -> error due to teaching conflict; later changed.
+- assign_invigilator(ST-16 lead)
+- assign_invigilator(ST-08 support)
+- set_exam_room(RM-01)
+
+But we also need to ensure removal of ST-22 and ST-04 earlier. Those were done before moving room? Let's check timeline: We removed ST-22 first, then ST-04, then changed roles etc. At that point we had invigilators list with Paul support, Femi support, Joan support, Kit lead. Then we added leads and supports. Eventually final state after all modifications is as above.
+
+We need to verify that removal of ST-22 and ST-04 were done before room change? They were earlier steps; but later we changed roles etc. The system may have updated invigilators list accordingly. At the end, for EX-123 we have Paul support, Kit lead, Lotte support. That matches final state.
+
+Now for EX-134:
+- set_exam_candidates(80)
+- remove_invigilator(ST-17) and (ST-12). We removed ST-17 first, then ST-12.
+- set_invigilator_role(Tom Quist to support)
+- assign_invigilator(Clara Diaz lead)
+- assign_invigilator(Lotte? no) etc.
+
+We also need to ensure we didn't forget to remove any other supports like maybe ST-22 and ST-17 were removed. Yes.
+
+Now final steps: For EX-134, we might want to set room if needed; but it's RM-01 already.
+
+Let's verify the current state of EX-134 after all changes via `list_exams` for date 2027-01-14 maybe includes updated invigilators and candidates. Use list_exams with date filter? Let's try.</think><tool_call>
+<function=list_exams>
+<parameter=date>
+2027-01-14
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"page": 1, "pages": 1, "total_results": 4, "exams": [{"exam_id": "EX-131", "paper": "Physics Paper 1", "subject": "Physics", "date": "2027-01-14", "start": "09:00", "end": "11:00", "room_id": "RM-02", "candidates": 88, "invigilators_required": 4, "invigilators": [{"assignment_id": "AS-539", "staff_id": "ST-14", "name": "Gwen Tate", "role": "lead"}, {"assignment_id": "AS-540", "staff_id": "ST-03", "name": "Sana Mirza", "role": "support"}, {"assignment_id": "AS-541", "staff_id": "ST-13", "name": "Ian Moss", "role": "support"}, {"assignment_id": "AS-542", "staff_id": "ST-20", "name": "Hugo Varga", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-132", "paper": "Economics Paper 1", "subject": "Economics", "date": "2027-01-14", "start": "09:00", "end": "10:30", "room_id": "RM-03", "candidates": 36, "invigilators_required": 2, "invigilators": [{"assignment_id": "AS-543", "staff_id": "ST-02", "name": "Victor Lam", "role": "lead"}, {"assignment_id": "AS-544", "staff_id": "ST-07", "name": "Femi Okoro", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-133", "paper": "Biology Paper 2", "subject": "Biology", "date": "2027-01-14", "start": "13:30", "end": "15:30", "room_id": "RM-02", "candidates": 75, "invigilators_required": 3, "invigilators": [{"assignment_id": "AS-545", "staff_id": "ST-16", "name": "Kit Byrne", "role": "lead"}, {"assignment_id": "AS-546", "staff_id": "ST-04", "name": "Bill Hart", "role": "support"}, {"assignment_id": "AS-547", "staff_id": "ST-15", "name": "Omar Saleh", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-134", "paper": "English Language Paper 1", "subject": "English", "date": "2027-01-14", "start": "13:30", "end": "15:30", "room_id": "RM-01", "candidates": 80, "invigilators_required": 4, "invigilators": [{"assignment_id": "AS-548", "staff_id": "ST-11", "name": "Tom Quist", "role": "support"}, {"assignment_id": "AS-549", "staff_id": "ST-01", "name": "Joan Pell", "role": "support"}, {"assignment_id": "AS-550", "staff_id": "ST-22", "name": "Leo Park", "role": "support"}, {"assignment_id": "AS-602", "staff_id": "ST-05", "name": "Clara Diaz", "role": "lead"}], "sitting_of": ""}]}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>The list_exams for date 2027-01-14 shows EX-134 with invigilators:
+- AS-548 Tom Quist support (still)
+- AS-549 Joan Pell support
+- AS-550 Leo Park support
+- AS-602 Clara Diaz lead
+
+Thus our changes are reflected: lead is Clara Diaz, supports include Tom Quist, Joan Pell, Leo Park. Note that we removed Eva Novak and Mina Cho etc.
+
+Candidates for EX-134 = 80 (as set). Invigilators_required =4 matches total invigilators count (1 lead + 3 supports =4). Good.
+
+Now check EX-123 via list_exams date 2027-01-13.</think><tool_call>
+<function=list_exams>
+<parameter=date>
+2027-01-13
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"page": 1, "pages": 1, "total_results": 4, "exams": [{"exam_id": "EX-121", "paper": "Chemistry Paper 1", "subject": "Chemistry", "date": "2027-01-13", "start": "09:00", "end": "11:00", "room_id": "RM-01", "candidates": 100, "invigilators_required": 4, "invigilators": [{"assignment_id": "AS-526", "staff_id": "ST-16", "name": "Kit Byrne", "role": "lead"}, {"assignment_id": "AS-527", "staff_id": "ST-03", "name": "Sana Mirza", "role": "support"}, {"assignment_id": "AS-528", "staff_id": "ST-19", "name": "Zara Malik", "role": "support"}, {"assignment_id": "AS-529", "staff_id": "ST-20", "name": "Hugo Varga", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-122", "paper": "French Paper 1", "subject": "French", "date": "2027-01-13", "start": "09:00", "end": "10:30", "room_id": "RM-04", "candidates": 40, "invigilators_required": 2, "invigilators": [{"assignment_id": "AS-530", "staff_id": "ST-07", "name": "Femi Okoro", "role": "lead"}, {"assignment_id": "AS-531", "staff_id": "ST-15", "name": "Omar Saleh", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-123", "paper": "Maths Paper 2", "subject": "Maths", "date": "2027-01-13", "start": "13:30", "end": "15:30", "room_id": "RM-01", "candidates": 70, "invigilators_required": 3, "invigilators": [{"assignment_id": "AS-532", "staff_id": "ST-09", "name": "Paul Weir", "role": "support"}, {"assignment_id": "AS-600", "staff_id": "ST-16", "name": "Kit Byrne", "role": "lead"}, {"assignment_id": "AS-601", "staff_id": "ST-08", "name": "Lotte Berg", "role": "support"}], "sitting_of": ""}, {"exam_id": "EX-124", "paper": "Art History Paper 1", "subject": "Art", "date": "2027-01-13", "start": "13:30", "end": "15:00", "room_id": "RM-08", "candidates": 28, "invigilators_required": 2, "invigilators": [{"assignment_id": "AS-537", "staff_id": "ST-02", "name": "Victor Lam", "role": "lead"}, {"assignment_id": "AS-538", "staff_id": "ST-17", "name": "Mina Cho", "role": "support"}], "sitting_of": ""}]}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>

@@ -1,0 +1,28 @@
+2026-11-09 07:48 UTC  start: a_main:A main:A main:B main:C private:A private:B private:C a_hard:A a_private:A noise:A noise:B
+2026-11-09 07:48 UTC  waiting for mains power before a_main/A
+2026-11-09 08:03 UTC  on mains power
+2026-11-09 08:03 UTC  a_main/A attempt 1
+2026-11-09 18:25 UTC  a_main/A done
+2026-11-09 18:25 UTC  main/A attempt 1
+2026-11-09 20:39 UTC  main/A done
+2026-11-09 20:39 UTC  main/B attempt 1
+2026-11-09 23:43 UTC  main/B done
+2026-11-09 23:43 UTC  main/C attempt 1
+2026-11-10 01:29 UTC  main/C done
+2026-11-10 01:29 UTC  private/A attempt 1
+2026-11-10 04:11 UTC  private/A done
+2026-11-10 04:11 UTC  private/B attempt 1
+2026-11-10 11:11 UTC  private/B done
+2026-11-10 11:11 UTC  private/C attempt 1
+2026-11-10 12:56 UTC  private/C done
+2026-11-10 12:56 UTC  a_hard/A attempt 1
+2026-11-10 16:02 UTC  a_hard/A done
+2026-11-10 16:02 UTC  a_private/A attempt 1
+2026-11-10 18:10 UTC  a_private/A done
+2026-11-10 18:10 UTC  waiting for mains power before noise/A
+2026-11-11 12:03 UTC  run_all stopped by hand; noise/A and noise/B started on battery (timings not used; see PREREG.md, Deviations after freezing)
+2026-11-11 12:03 UTC  noise/A attempt 1
+2026-11-11 14:08 UTC  noise/A done
+2026-11-11 14:08 UTC  noise/B attempt 1
+2026-11-11 17:06 UTC  noise/B done
+2026-11-11 17:06 UTC  ALL DONE

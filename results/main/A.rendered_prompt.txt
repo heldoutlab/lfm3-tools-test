@@ -1,0 +1,58 @@
+<|startoftext|><|im_start|>system
+You are a helpful assistant
+
+<tools>
+{"name": "get_lab_policy", "description": "Today's date, storage temperature per sample type, permitted destruction methods, and the custody, storage, retention and destruction rules that the write tools enforce.", "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": false}}
+{"name": "list_studies", "description": "All studies: status, closing date, retention period, date retention ends, sample custodian and principal investigator.", "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": false}}
+{"name": "list_staff", "description": "All staff: role, training, status and supervisor.", "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": false}}
+{"name": "find_samples", "description": "Samples, filtered, by sample id; 10 per page.", "parameters": {"type": "object", "properties": {"study_id": {"type": "string", "description": "Only this study, e.g. ST-01."}, "participant_id": {"type": "string", "description": "Only this participant, e.g. PT-101."}, "type": {"type": "string", "description": "Only this sample type.", "enum": ["plasma", "serum", "rna", "urine", "dna", "tissue", "cells"]}, "status": {"type": "string", "description": "Only this status.", "enum": ["stored", "checked_out", "destroyed"]}, "freezer_id": {"type": "string", "description": "Only samples stored in this freezer, e.g. FZ-04."}, "custodian_id": {"type": "string", "description": "Only samples in this person's custody, e.g. PS-07."}, "page": {"type": "integer", "description": "Page number, starting at 1 (default 1).", "minimum": 1}}, "required": [], "additionalProperties": false}}
+{"name": "get_sample", "description": "One sample in detail, with its study, participant consent, location and custody.", "parameters": {"type": "object", "properties": {"sample_id": {"type": "string", "description": "Sample id, e.g. SM-0412."}}, "required": ["sample_id"], "additionalProperties": false}}
+{"name": "list_storage", "description": "Without freezer_id: every freezer with temperature and status. With freezer_id: its racks, which slot holds which sample, and the free slots.", "parameters": {"type": "object", "properties": {"freezer_id": {"type": "string", "description": "Freezer id, e.g. FZ-05."}}, "required": [], "additionalProperties": false}}
+{"name": "relocate_sample", "description": "Move a stored sample to another rack slot (within storage).", "parameters": {"type": "object", "properties": {"sample_id": {"type": "string", "description": "Sample id."}, "rack_id": {"type": "string", "description": "Destination rack, e.g. RK-41."}, "slot": {"type": "integer", "description": "Destination slot number.", "minimum": 1, "maximum": 100}}, "required": ["sample_id", "rack_id", "slot"], "additionalProperties": false}}
+{"name": "check_out_sample", "description": "Take a stored sample out of storage into a person's custody.", "parameters": {"type": "object", "properties": {"sample_id": {"type": "string", "description": "Sample id."}, "to_person": {"type": "string", "description": "Staff id who takes custody."}, "purpose": {"type": "string", "description": "What it is taken out for.", "enum": ["assay", "aliquoting", "shipment_prep", "quality_check"]}, "due_back": {"type": "string", "description": "Return date, YYYY-MM-DD."}}, "required": ["sample_id", "to_person", "purpose", "due_back"], "additionalProperties": false}}
+{"name": "return_sample", "description": "Put a checked-out sample back into storage; custody returns to the study's custodian.", "parameters": {"type": "object", "properties": {"sample_id": {"type": "string", "description": "Sample id."}, "rack_id": {"type": "string", "description": "Rack id."}, "slot": {"type": "integer", "description": "Slot number.", "minimum": 1, "maximum": 100}, "volume_used_ul": {"type": "integer", "description": "Optional microlitres used while it was out (default 0).", "minimum": 0, "maximum": 100000}}, "required": ["sample_id", "rack_id", "slot"], "additionalProperties": false}}
+{"name": "transfer_custody", "description": "Hand checked-out samples from one person to another (chain of custody).", "parameters": {"type": "object", "properties": {"sample_ids": {"type": "array", "description": "Samples handed over.", "items": {"type": "string", "description": "Sample id."}, "minItems": 1, "maxItems": 20}, "from_person": {"type": "string", "description": "Staff id handing over."}, "to_person": {"type": "string", "description": "Staff id receiving."}, "reason": {"type": "string", "description": "Why custody changes.", "enum": ["handover", "courier", "shift_change"]}}, "required": ["sample_ids", "from_person", "to_person", "reason"], "additionalProperties": false}}
+{"name": "create_aliquots", "description": "Split part of a stored sample into new child samples (aliquots) in storage.", "parameters": {"type": "object", "properties": {"sample_id": {"type": "string", "description": "Parent sample id."}, "aliquots": {"type": "array", "description": "The aliquots to make.", "items": {"type": "object", "properties": {"volume_ul": {"type": "integer", "description": "Volume in microlitres.", "minimum": 1, "maximum": 100000}, "rack_id": {"type": "string", "description": "Rack id."}, "slot": {"type": "integer", "description": "Slot number.", "minimum": 1, "maximum": 100}}, "required": ["volume_ul", "rack_id", "slot"], "additionalProperties": false}, "minItems": 1, "maxItems": 8}}, "required": ["sample_id", "aliquots"], "additionalProperties": false}}
+{"name": "destroy_samples", "description": "Destroy stored samples, with a witness.", "parameters": {"type": "object", "properties": {"sample_ids": {"type": "array", "description": "Samples to destroy.", "items": {"type": "string", "description": "Sample id."}, "minItems": 1, "maxItems": 20}, "method": {"type": "string", "description": "Destruction method.", "enum": ["autoclave", "incineration", "chemical"]}, "witness_id": {"type": "string", "description": "Staff id of the witness."}}, "required": ["sample_ids", "method", "witness_id"], "additionalProperties": false}}
+{"name": "set_sample_hold", "description": "Place a hold on a sample (on_hold=true, with a reason) or lift it (on_hold=false).", "parameters": {"type": "object", "properties": {"sample_id": {"type": "string", "description": "Sample id."}, "on_hold": {"type": "boolean", "description": "true to place, false to lift."}, "reason": {"type": "string", "description": "Kind of hold (required when placing).", "enum": ["legal", "quality", "audit"]}, "review_on": {"type": "string", "description": "Optional date to review the hold, YYYY-MM-DD."}}, "required": ["sample_id", "on_hold"], "additionalProperties": false}}
+{"name": "record_consent_withdrawal", "description": "Record that a participant has withdrawn consent (applies to all of their samples).", "parameters": {"type": "object", "properties": {"participant_id": {"type": "string", "description": "Participant id."}, "date_received": {"type": "string", "description": "Date the withdrawal was received."}}, "required": ["participant_id", "date_received"], "additionalProperties": false}}
+</tools><|im_end|>
+<|im_start|>user
+Please split plasma sample SM-0412 (1.2 mL left, collected 14 September, cohort ST-01) into three aliquots of 0.25 mL each for the troponin assay. Put them in rack RK-51, slots 4, 5 and 6 - the parent itself sits in slot 3 of the same rack and stays there.<|im_end|>
+<|im_start|>assistant
+<think>We need to split sample SM-0412 into three aliquots of 0.25 mL each. The user specifies: 
+- Parent sample ID: SM-0412.
+- Aliquot details: volume_ul = 0.25 mL? But note units: "volume in microlitres". So 0.25 mL = 250 µL. Wait, typical microlitres: 1 mL = 1000 µL. So 0.25 mL = 250 µL.
+- Destination rack: RK-51.
+- Slots: 4, 5, and 6 for each aliquot? The user says "Put them in rack RK-51, slots 4, 5 and 6 - the parent itself sits in slot 3 of the same rack and stays there." So we need to create three new child samples (aliquots) from SM-0412. Each aliquot: volume_ul=250, rack_id="RK-51", slot numbers 4,5,6 respectively.
+
+We also need to specify "aliquots" array with entries for each aliquot. The tool `create_aliquots` takes parameters:
+{
+ "sample_id": string,
+ "aliquots": [ { volume_ul: int, rack_id: string, slot: int }, ... ]
+}
+
+Thus we can call create_aliquots with sample_id="SM-0412", aliquots = [
+  {"volume_ul":250, "rack_id":"RK-51", "slot":4},
+  {"volume_ul":250, "rack_id":"RK-51", "slot":5},
+  {"volume_ul":250, "rack_id":"RK-51", "slot":6}
+]
+
+But we also need to ensure that the parent sample remains in slot 3 of rack RK-51. The tool `create_aliquots` likely handles splitting and placing new aliquots; it may not automatically preserve parent location. But user says parent stays at slot 3, so presumably we don't need to specify anything about parent.
+
+Let's call the function.</think><tool_call>
+<function=create_aliquots>
+<parameter=sample_id>
+SM-0412
+</parameter>
+<parameter=aliquots>
+[{"volume_ul": 250, "rack_id": "RK-51", "slot": 4}, {"volume_ul": 250, "rack_id": "RK-51", "slot": 5}, {"volume_ul": 250, "rack_id": "RK-51", "slot": 6}]
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>tool
+<tool_response>
+{"ok": true, "parent": {"sample_id": "SM-0412", "study": "ST-01", "participant": "PT-101", "type": "plasma", "volume_ul": 450, "collected": "2026-09-14", "status": "stored", "rack": "RK-51", "slot": 3, "custodian": "PS-03", "hold": "", "hold_review": "", "parent": "", "purpose": "", "due_back": "", "destroyed_on": "", "destroy_method": "", "witness": "", "freezer": "FZ-05", "consent": "given", "storage_temp": -80}, "aliquots": [{"sample_id": "SM-2000", "study": "ST-01", "participant": "PT-101", "type": "plasma", "volume_ul": 250, "collected": "2026-09-14", "status": "stored", "rack": "RK-51", "slot": 4, "custodian": "PS-03", "hold": "", "hold_review": "", "parent": "SM-0412", "purpose": "", "due_back": "", "destroyed_on": "", "destroy_method": "", "witness": "", "freezer": "FZ-05", "consent": "given", "storage_temp": -80}, {"sample_id": "SM-2001", "study": "ST-01", "participant": "PT-101", "type": "plasma", "volume_ul": 250, "collected": "2026-09-14", "status": "stored", "rack": "RK-51", "slot": 5, "custodian": "PS-03", "hold": "", "hold_review": "", "parent": "SM-0412", "purpose": "", "due_back": "", "destroyed_on": "", "destroy_method": "", "witness": "", "freezer": "FZ-05", "consent": "given", "storage_temp": -80}, {"sample_id": "SM-2002", "study": "ST-01", "participant": "PT-101", "type": "plasma", "volume_ul": 250, "collected": "2026-09-14", "status": "stored", "rack": "RK-51", "slot": 6, "custodian": "PS-03", "hold": "", "hold_review": "", "parent": "SM-0412", "purpose": "", "due_back": "", "destroyed_on": "", "destroy_method": "", "witness": "", "freezer": "FZ-05", "consent": "given", "storage_temp": -80}]}
+</tool_response><|im_end|>
+<|im_start|>assistant
+<think>
